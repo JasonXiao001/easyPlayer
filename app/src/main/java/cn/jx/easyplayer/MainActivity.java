@@ -1,10 +1,19 @@
 package cn.jx.easyplayer;
 
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final String TAG = MainActivity.class.getSimpleName();
+
+    private SurfaceHolder surfaceViewHolder;
+    private SurfaceView surfaceView;
 
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -15,15 +24,36 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        surfaceView = (SurfaceView) findViewById(R.id.surface);
+        surfaceViewHolder = surfaceView.getHolder();
+        surfaceViewHolder.addCallback(new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                new Thread(new Play()).start();
+            }
 
-        // Example of a call to a native method
-        TextView tv = (TextView) findViewById(R.id.sample_text);
-        tv.setText(stringFromJNI());
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+
+            }
+        });
+
     }
 
-    /**
-     * A native method that is implemented by the 'native-lib' native library,
-     * which is packaged with this application.
-     */
-    public native String stringFromJNI();
+    class Play implements Runnable {
+
+        @Override
+        public void run() {
+            String folderurl = Environment.getExternalStorageDirectory().getPath();
+            String inputurl = folderurl+"/Redsdream.mp4";
+            play(inputurl, surfaceViewHolder.getSurface());
+        }
+    }
+
+    public native int play(String url, Surface surface);
 }
