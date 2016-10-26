@@ -15,6 +15,7 @@
 ANativeWindow* nativeWindow;
 ANativeWindow_Buffer windowBuffer;
 Player player;
+jmethodID gOnResolutionChange = NULL;
 
 void showPic() {
     while (true) {
@@ -55,6 +56,15 @@ Java_cn_jx_easyplayer_MainActivity_play
         ANativeWindow_release(nativeWindow);
         return;
     }
+    if (NULL == gOnResolutionChange){
+        jclass clazz = env->GetObjectClass(obj);
+        gOnResolutionChange = env->GetMethodID(clazz,"onResolutionChange","(II)V");
+        if (NULL == gOnResolutionChange){
+            LOGD("Couldn't find onResolutionChange method.\n");
+            return;
+        }
+    }
+    env->CallVoidMethod(obj, gOnResolutionChange, player.getWidth(), player.getHeight());
     player.decode();
     std::thread t(showPic);
     t.join();

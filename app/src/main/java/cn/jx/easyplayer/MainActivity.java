@@ -1,11 +1,16 @@
 package cn.jx.easyplayer;
 
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
@@ -14,6 +19,7 @@ public class MainActivity extends AppCompatActivity {
 
     private SurfaceHolder surfaceViewHolder;
     private SurfaceView surfaceView;
+    private Handler mainHandler = new Handler(Looper.getMainLooper());
 
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -53,6 +59,25 @@ public class MainActivity extends AppCompatActivity {
             String inputurl = folderurl+"/Redsdream.mp4";
             play(inputurl, surfaceViewHolder.getSurface());
         }
+    }
+
+    private void onResolutionChange(final int width,final int height){
+        Log.d(TAG, "height: "+height+" width:"+width);
+        Display display = getWindowManager().getDefaultDisplay();
+        final int displayWidth = display.getWidth();
+        mainHandler.post(new Runnable(){
+
+            @Override
+            public void run() {
+                // TODO Auto-generated method stub
+                RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) surfaceView.getLayoutParams();
+                params.height = displayWidth*height/width;
+                surfaceView.setLayoutParams(params);
+            }
+
+        });
+
+
     }
 
     public native int play(String url, Surface surface);
