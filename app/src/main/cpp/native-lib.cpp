@@ -4,10 +4,11 @@
 #include <mutex>
 #include <android/log.h>
 #include <player.h>
+#include <opensles.h>
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
-#include <unistd.h>
+
 
 
 #define LOGD(format, ...)  __android_log_print(ANDROID_LOG_INFO,  "native-lib", format, ##__VA_ARGS__)
@@ -34,8 +35,11 @@ void showPic() {
             ANativeWindow_unlockAndPost(nativeWindow);
 
         }
-        usleep(40000);
     }
+}
+
+void playAudio() {
+    audioStart();
 }
 
 
@@ -43,9 +47,13 @@ extern "C"
 void
 Java_cn_jx_easyplayer_MainActivity_play
         (JNIEnv *env, jobject obj, jstring url, jobject surface) {
+
     char inputStr[500] = {0};
     sprintf(inputStr, "%s", env->GetStringUTFChars(url, NULL));
     player.init(inputStr);
+    init(&player);
+    createAudioEngine();
+    createBufferQueueAudioPlayer(player.getSampleRate(), player.getChannel());
     nativeWindow = ANativeWindow_fromSurface(env, surface);
     if (0 == nativeWindow){
         LOGD("Couldn't get native window from surface.\n");
@@ -64,10 +72,19 @@ Java_cn_jx_easyplayer_MainActivity_play
             return;
         }
     }
-    env->CallVoidMethod(obj, gOnResolutionChange, player.getWidth(), player.getHeight());
+    if (player.isVideo()) {
+        env->CallVoidMethod(obj, gOnResolutionChange, player.getWidth(), player.getHeight());
+    }
     player.decode();
-    std::thread t(showPic);
-    t.join();
+    player.start();
+    if (player.isVideo()) {
+        std::thread videoThread(showPic);
+        videoThread.join();
+    }
+    std::thread audioThread(playAudio);
+    audioThread.join();
+
 }
+
 
 

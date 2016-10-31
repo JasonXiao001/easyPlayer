@@ -5,6 +5,7 @@
 #include "player.h"
 
 
+
 void Player::init(const std::string url){
     assert(url.length() > 0);
     this->url = url;
@@ -23,25 +24,36 @@ void Player::init(const std::string url){
             videoIndex = i;
         }
     }
-    assert(audioIndex >= 0 && videoIndex >= 0);
-    aCodecCtx = pFormatCtx->streams[audioIndex]->codec;
-    aCodec = avcodec_find_decoder(aCodecCtx->codec_id);
-    vCodecCtx=pFormatCtx->streams[videoIndex]->codec;
-    vCodec = avcodec_find_decoder(vCodecCtx->codec_id);
-    assert(aCodec != NULL);
-    assert(vCodec != NULL);
-    result = avcodec_open2(aCodecCtx, aCodec, NULL);
-    assert(result >= 0);
-    result = avcodec_open2(vCodecCtx, vCodec,NULL);
-    assert(result >= 0);
-    frameRGBA = av_frame_alloc();
-    width = vCodecCtx->width;
-    height = vCodecCtx->height;
-    int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height,1);
-    vOutBuffer = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
-    av_image_fill_arrays(frameRGBA->data, frameRGBA->linesize, vOutBuffer, AV_PIX_FMT_RGBA, width, height, 1);
-    imgConvertCtx = sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt,
-                                     vCodecCtx->width, vCodecCtx->height, AV_PIX_FMT_RGBA, SWS_BICUBIC, NULL, NULL, NULL);
+    if (audioIndex >= 0) {
+        aStream = pFormatCtx->streams[audioIndex];
+        aCodecCtx = pFormatCtx->streams[audioIndex]->codec;
+        aCodec = avcodec_find_decoder(aCodecCtx->codec_id);
+        result = avcodec_open2(aCodecCtx, aCodec, NULL);
+        assert(result >= 0);
+        audioConvertCtx = swr_alloc();
+        audioConvertCtx = swr_alloc_set_opts(NULL,
+                                             aCodecCtx->channel_layout, AV_SAMPLE_FMT_S16, aCodecCtx->sample_rate,
+                                             aCodecCtx->channel_layout, aCodecCtx->sample_fmt, aCodecCtx->sample_rate,
+                                             0, NULL);
+        swr_init(audioConvertCtx);
+    }
+    if (videoIndex >= 0) {
+        vStream = pFormatCtx->streams[videoIndex];
+        vCodecCtx=pFormatCtx->streams[videoIndex]->codec;
+        vCodec = avcodec_find_decoder(vCodecCtx->codec_id);
+        result = avcodec_open2(vCodecCtx, vCodec,NULL);
+        assert(result >= 0);
+        frameRGBA = av_frame_alloc();
+        width = vCodecCtx->width;
+        height = vCodecCtx->height;
+        int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height,1);
+        vOutBuffer = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+        av_image_fill_arrays(frameRGBA->data, frameRGBA->linesize, vOutBuffer, AV_PIX_FMT_RGBA, width, height, 1);
+        imgConvertCtx = sws_getContext(vCodecCtx->width, vCodecCtx->height, vCodecCtx->pix_fmt,
+                                       vCodecCtx->width, vCodecCtx->height, AV_PIX_FMT_RGBA, SWS_BICUBIC, NULL, NULL, NULL);
+    }
+
+
 
 }
 
@@ -60,6 +72,9 @@ void Player::enQueue(AVPacket *packet) {
     if (packet->stream_index == videoIndex) {
         picQueue.push(*packet);
     }
+    if (packet->stream_index == audioIndex) {
+        audioQueue.push(*packet);
+    }
     queueMutex.unlock();
 }
 
@@ -69,6 +84,7 @@ AVFrame* Player::deQueuePic() {
     AVPacket packet = picQueue.front();
     picQueue.pop();
     queueMutex.unlock();
+    av_gettime_relative();
     int ret = avcodec_send_packet(vCodecCtx, &packet);
     if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
         return nullptr;
@@ -77,9 +93,44 @@ AVFrame* Player::deQueuePic() {
         return nullptr;
     sws_scale(imgConvertCtx, (const uint8_t* const*)vFrame.data, vFrame.linesize, 0, vCodecCtx->height,
               frameRGBA->data, frameRGBA->linesize);
+
+
     av_packet_unref(&packet);
+    double timestamp = av_frame_get_best_effort_timestamp(&vFrame)*av_q2d(vStream->time_base);
+    if (timestamp > audioClock) {
+        usleep((unsigned long)((timestamp - audioClock)*1000000));
+    }
     return frameRGBA;
 }
+
+
+void Player::deQueueAudio(int &nextSize, uint8_t *outputBuffer) {
+    queueMutex.lock();
+    if (audioQueue.size() == 0) return;
+    AVPacket packet = audioQueue.front();
+    audioQueue.pop();
+    queueMutex.unlock();
+    int ret = avcodec_send_packet(aCodecCtx, &packet);
+    if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
+        return;
+    ret = avcodec_receive_frame(aCodecCtx, &aFrame);
+    if (ret < 0 && ret != AVERROR_EOF)
+        return;
+
+    audioClock = aFrame.pkt_pts * av_q2d(aStream->time_base);
+    if (aCodecCtx->sample_fmt == AV_SAMPLE_FMT_S16P) {
+        nextSize = av_samples_get_buffer_size(aFrame.linesize, aCodecCtx->channels, aCodecCtx->frame_size, aCodecCtx->sample_fmt, 1);
+    }else {
+        av_samples_get_buffer_size(&nextSize, aCodecCtx->channels, aCodecCtx->frame_size, aCodecCtx->sample_fmt, 1);
+    }
+    // 音频格式转换
+    ret = swr_convert(audioConvertCtx, &outputBuffer, aFrame.nb_samples,
+                (uint8_t const **) (aFrame.extended_data),
+                aFrame.nb_samples);
+    av_packet_unref(&packet);
+}
+
+
 
 void Player::release() {
     for (int i = 0; i < picQueue.size(); ++i) {
@@ -91,4 +142,8 @@ void Player::release() {
     avcodec_close(vCodecCtx);
     avcodec_close(aCodecCtx);
     avformat_close_input(&pFormatCtx);
+}
+
+void Player::start() {
+    clock.start();
 }

@@ -1,5 +1,6 @@
 package cn.jx.easyplayer;
 
+
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -11,7 +12,6 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -49,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+
     }
 
     class Play implements Runnable {
@@ -56,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             String folderurl = Environment.getExternalStorageDirectory().getPath();
-            String inputurl = folderurl+"/Redsdream.mp4";
+            String inputurl = folderurl+"/salina.mp3";
             play(inputurl, surfaceViewHolder.getSurface());
         }
     }
@@ -81,4 +82,5 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public native int play(String url, Surface surface);
+
 }

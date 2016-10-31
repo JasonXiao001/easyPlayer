@@ -29,7 +29,8 @@ set_target_properties(swscale-4_lib PROPERTIES IMPORTED_LOCATION
 # build application's shared lib
 add_library(native-lib SHARED
             ${CMAKE_SOURCE_DIR}/src/main/cpp/native-lib.cpp
-            ${CMAKE_SOURCE_DIR}/src/main/cpp/player.cpp)
+            ${CMAKE_SOURCE_DIR}/src/main/cpp/player.cpp
+            ${CMAKE_SOURCE_DIR}/src/main/cpp/opensles.cpp)
 
 # Include libraries needed for VideoPlayer lib
 target_link_libraries(native-lib
