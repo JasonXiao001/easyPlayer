@@ -93,13 +93,25 @@ AVFrame* Player::deQueuePic() {
         return nullptr;
     sws_scale(imgConvertCtx, (const uint8_t* const*)vFrame.data, vFrame.linesize, 0, vCodecCtx->height,
               frameRGBA->data, frameRGBA->linesize);
-
-
-    av_packet_unref(&packet);
-    double timestamp = av_frame_get_best_effort_timestamp(&vFrame)*av_q2d(vStream->time_base);
-    if (timestamp > audioClock) {
-        usleep((unsigned long)((timestamp - audioClock)*1000000));
+    double timestamp;
+    if(packet.pts == AV_NOPTS_VALUE) {
+        timestamp = 0;
+    } else {
+        timestamp = av_frame_get_best_effort_timestamp(&vFrame)*av_q2d(vStream->time_base);
     }
+    double frameRate = av_q2d(vStream->avg_frame_rate);
+    frameRate += vFrame.repeat_pict * (frameRate * 0.5);
+    if (timestamp == 0.0) {
+        usleep((unsigned long)(frameRate*1000));
+    }else {
+        if (fabs(timestamp - audioClock) > AV_SYNC_THRESHOLD_MIN &&
+                fabs(timestamp - audioClock) < AV_NOSYNC_THRESHOLD) {
+            if (timestamp > audioClock) {
+                usleep((unsigned long)((timestamp - audioClock)*1000000));
+            }
+        }
+    }
+    av_packet_unref(&packet);
     return frameRGBA;
 }
 

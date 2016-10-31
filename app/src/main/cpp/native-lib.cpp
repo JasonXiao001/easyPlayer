@@ -77,12 +77,10 @@ Java_cn_jx_easyplayer_MainActivity_play
     }
     player.decode();
     player.start();
-    if (player.isVideo()) {
-        std::thread videoThread(showPic);
-        videoThread.join();
-    }
+    std::thread videoThread(showPic);
     std::thread audioThread(playAudio);
     audioThread.join();
+    videoThread.join();
 
 }
 

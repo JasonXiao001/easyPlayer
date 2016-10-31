@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             String folderurl = Environment.getExternalStorageDirectory().getPath();
-            String inputurl = folderurl+"/salina.mp3";
+            String inputurl = folderurl+"/bird.mp4";
             play(inputurl, surfaceViewHolder.getSurface());
         }
     }
