@@ -486,7 +486,7 @@ bool EasyPlayer::get_img_frame(AVFrame *frame) {
               frame->data, frame->linesize);
     double timestamp = av_frame_get_best_effort_timestamp(av_frame->frame)*av_q2d(video_st->time_base);
     if (timestamp > audio_clock) {
-        usleep((unsigned long)((timestamp - audio_clock)*1000000));
+//        usleep((unsigned long)((timestamp - audio_clock)*1000000));
     }
     av_frame_unref(av_frame->frame);
     av_frame_free(&av_frame->frame);

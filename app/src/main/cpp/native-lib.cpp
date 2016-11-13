@@ -22,6 +22,11 @@ EasyPlayer easyPlayer;
 
 void showPic() {
     easyPlayer.wait_state(PlayerState::READY);
+    if (0 > ANativeWindow_setBuffersGeometry(nativeWindow, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height(), WINDOW_FORMAT_RGBA_8888)){
+        LOGD("Couldn't set buffers geometry.\n");
+        ANativeWindow_release(nativeWindow);
+        return;
+    }
     AVFrame *frameRGBA = av_frame_alloc();
     int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height(),1);
     uint8_t *vOutBuffer = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
@@ -41,6 +46,7 @@ void showPic() {
 
         }
     }
+
 }
 
 void playAudio() {
@@ -100,11 +106,7 @@ Java_cn_jx_easyplayer_MainActivity_play
         LOGD("Couldn't get native window from surface.\n");
         return;
     }
-    if (0 > ANativeWindow_setBuffersGeometry(nativeWindow, player.getWidth(), player.getHeight(), WINDOW_FORMAT_RGBA_8888)){
-        LOGD("Couldn't set buffers geometry.\n");
-        ANativeWindow_release(nativeWindow);
-        return;
-    }
+
     if (NULL == gOnResolutionChange){
         jclass clazz = env->GetObjectClass(obj);
         gOnResolutionChange = env->GetMethodID(clazz,"onResolutionChange","(II)V");
@@ -113,12 +115,14 @@ Java_cn_jx_easyplayer_MainActivity_play
             return;
         }
     }
+    std::thread videoThread(showPic);
+    std::thread audioThread(playAudio);
+    easyPlayer.wait_state(PlayerState::READY);
     if (easyPlayer.has_video()) {
         env->CallVoidMethod(obj, gOnResolutionChange, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height());
     }
 //    std::thread decodeThread(decode);
-    std::thread videoThread(showPic);
-    std::thread audioThread(playAudio);
+
     audioThread.join();
     videoThread.join();
 //    decodeThread.join();
