@@ -11,6 +11,7 @@ void Player::init(const std::string url){
     this->url = url;
     int result;
     av_register_all();
+    avformat_network_init();
     pFormatCtx = avformat_alloc_context();
     result = avformat_open_input(&pFormatCtx, this->url.c_str(), NULL, NULL);
     assert(result == 0);
@@ -79,6 +80,7 @@ void Player::enQueue(AVPacket *packet) {
 }
 
 AVFrame* Player::deQueuePic() {
+    begin:
     queueMutex.lock();
     if (picQueue.size() == 0) return nullptr;
     AVPacket packet = picQueue.front();
@@ -87,10 +89,10 @@ AVFrame* Player::deQueuePic() {
     av_gettime_relative();
     int ret = avcodec_send_packet(vCodecCtx, &packet);
     if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-        return nullptr;
+        goto begin;
     ret = avcodec_receive_frame(vCodecCtx, &vFrame);
     if (ret < 0 && ret != AVERROR_EOF)
-        return nullptr;
+        goto begin;
     sws_scale(imgConvertCtx, (const uint8_t* const*)vFrame.data, vFrame.linesize, 0, vCodecCtx->height,
               frameRGBA->data, frameRGBA->linesize);
     double timestamp;
@@ -117,6 +119,7 @@ AVFrame* Player::deQueuePic() {
 
 
 void Player::deQueueAudio(int &nextSize, uint8_t *outputBuffer) {
+    begin:
     queueMutex.lock();
     if (audioQueue.size() == 0) return;
     AVPacket packet = audioQueue.front();
@@ -124,10 +127,10 @@ void Player::deQueueAudio(int &nextSize, uint8_t *outputBuffer) {
     queueMutex.unlock();
     int ret = avcodec_send_packet(aCodecCtx, &packet);
     if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-        return;
+        goto begin;
     ret = avcodec_receive_frame(aCodecCtx, &aFrame);
     if (ret < 0 && ret != AVERROR_EOF)
-        return;
+        goto begin;
 
     audioClock = aFrame.pkt_pts * av_q2d(aStream->time_base);
     if (aCodecCtx->sample_fmt == AV_SAMPLE_FMT_S16P) {
@@ -157,5 +160,5 @@ void Player::release() {
 }
 
 void Player::start() {
-    clock.start();
+//    clock.start();
 }

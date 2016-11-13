@@ -1,9 +1,11 @@
 package cn.jx.easyplayer;
 
 
+import android.content.Intent;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,7 +21,8 @@ public class MainActivity extends AppCompatActivity {
 
     private SurfaceHolder surfaceViewHolder;
     private SurfaceView surfaceView;
-    private Handler mainHandler = new Handler(Looper.getMainLooper());
+    private Handler mainHandler = new Handler();
+
 
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -58,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
         public void run() {
             String folderurl = Environment.getExternalStorageDirectory().getPath();
             String inputurl = folderurl+"/bird.mp4";
+//            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
+//            String inputurl = "http://1251659802.vod2.myqcloud.com/vod1251659802/9031868222807497694/f0.mp4";
             play(inputurl, surfaceViewHolder.getSurface());
         }
     }

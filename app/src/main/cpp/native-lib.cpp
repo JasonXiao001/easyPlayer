@@ -4,6 +4,7 @@
 #include <mutex>
 #include <android/log.h>
 #include <player.h>
+#include "easyPlayer.h"
 #include <opensles.h>
 
 #include <android/native_window.h>
@@ -17,19 +18,23 @@ ANativeWindow* nativeWindow;
 ANativeWindow_Buffer windowBuffer;
 Player player;
 jmethodID gOnResolutionChange = NULL;
+EasyPlayer easyPlayer;
 
 void showPic() {
-    while (true) {
-        AVFrame *frameRGBA = player.deQueuePic();
-        if (frameRGBA == nullptr) break;
+    easyPlayer.wait_state(PlayerState::READY);
+    AVFrame *frameRGBA = av_frame_alloc();
+    int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height(),1);
+    uint8_t *vOutBuffer = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+    av_image_fill_arrays(frameRGBA->data, frameRGBA->linesize, vOutBuffer, AV_PIX_FMT_RGBA, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height(), 1);
+    while (easyPlayer.get_img_frame(frameRGBA)) {
         if (ANativeWindow_lock(nativeWindow, &windowBuffer, NULL) < 0) {
             LOGD("cannot lock window");
         } else {
             uint8_t *dst = (uint8_t *) windowBuffer.bits;
-            for (int h = 0; h < player.getHeight(); h++)
+            for (int h = 0; h < easyPlayer.viddec.get_height(); h++)
             {
                 memcpy(dst + h * windowBuffer.stride * 4,
-                       player.getOutBuffer() + h * frameRGBA->linesize[0],
+                       vOutBuffer + h * frameRGBA->linesize[0],
                        frameRGBA->linesize[0]);
             }
             ANativeWindow_unlockAndPost(nativeWindow);
@@ -39,8 +44,43 @@ void showPic() {
 }
 
 void playAudio() {
+    easyPlayer.wait_state(PlayerState::READY);
+    createAudioEngine();
+    createBufferQueueAudioPlayer(easyPlayer.auddec.get_sample_rate(), easyPlayer.auddec.get_channels());
     audioStart();
 }
+
+void decode() {
+    player.decode();
+    player.start();
+}
+
+void log(void* ptr, int level, const char* fmt,va_list vl) {
+    switch (level) {
+        case AV_LOG_VERBOSE:
+            __android_log_vprint(ANDROID_LOG_DEBUG,  "native-lib", fmt, vl);
+            break;
+        case AV_LOG_INFO:
+            __android_log_vprint(ANDROID_LOG_INFO,  "native-lib", fmt, vl);
+            break;
+        case AV_LOG_WARNING:
+            __android_log_vprint(ANDROID_LOG_WARN,  "native-lib", fmt, vl);
+            break;
+        case AV_LOG_ERROR:
+            __android_log_vprint(ANDROID_LOG_ERROR,  "native-lib", fmt, vl);
+            break;
+        case AV_LOG_FATAL:
+        case AV_LOG_PANIC:
+            __android_log_vprint(ANDROID_LOG_FATAL,  "native-lib", fmt, vl);
+            break;
+        case AV_LOG_QUIET:
+            __android_log_vprint(ANDROID_LOG_SILENT,  "native-lib", fmt, vl);
+            break;
+        default:
+            break;
+    }
+}
+
 
 
 extern "C"
@@ -50,10 +90,11 @@ Java_cn_jx_easyplayer_MainActivity_play
 
     char inputStr[500] = {0};
     sprintf(inputStr, "%s", env->GetStringUTFChars(url, NULL));
-    player.init(inputStr);
-    init(&player);
-    createAudioEngine();
-    createBufferQueueAudioPlayer(player.getSampleRate(), player.getChannel());
+    av_log_set_callback(log);
+    easyPlayer.init(inputStr);
+
+//    player.init(inputStr);
+    init(&easyPlayer);
     nativeWindow = ANativeWindow_fromSurface(env, surface);
     if (0 == nativeWindow){
         LOGD("Couldn't get native window from surface.\n");
@@ -72,17 +113,20 @@ Java_cn_jx_easyplayer_MainActivity_play
             return;
         }
     }
-    if (player.isVideo()) {
-        env->CallVoidMethod(obj, gOnResolutionChange, player.getWidth(), player.getHeight());
+    if (easyPlayer.has_video()) {
+        env->CallVoidMethod(obj, gOnResolutionChange, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height());
     }
-    player.decode();
-    player.start();
+//    std::thread decodeThread(decode);
     std::thread videoThread(showPic);
     std::thread audioThread(playAudio);
     audioThread.join();
     videoThread.join();
+//    decodeThread.join();
 
 }
+
+
+
 
 
 

@@ -7,7 +7,7 @@
 
 SLObjectItf engineObject = NULL;
 SLEngineItf engineEngine;
-Player *mPlayer;
+EasyPlayer *mPlayer;
 
 // output mix interfaces
 SLObjectItf outputMixObject;
@@ -191,7 +191,7 @@ void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
     assert(NULL == context);
 
     // for streaming playback, replace this test by logic to find and fill the next buffer
-    mPlayer->deQueueAudio(nextSize, outputBuffer);
+    mPlayer->get_aud_buffer(nextSize, outputBuffer);
     if ( NULL != outputBuffer && 0 != nextSize) {
         SLresult result;
         // enqueue another buffer
@@ -220,7 +220,7 @@ void releaseResampleBuf(void) {
     resampleBuf = NULL;
 }
 
-void init(Player *player) {
+void init(EasyPlayer *player) {
     mPlayer = player;
     outputBuffer = (uint8_t *) malloc(sizeof(uint8_t) * outputBufferSize);
 }

@@ -23,6 +23,8 @@ extern "C"{
 #include "libavutil/time.h"
 };
 
+
+
 /* no AV sync correction is done if below the minimum AV sync threshold */
 #define AV_SYNC_THRESHOLD_MIN 0.04
 /* AV sync correction is done if above the maximum AV sync threshold */
@@ -79,7 +81,7 @@ private:
     SwsContext *imgConvertCtx;
     SwrContext *audioConvertCtx;
     uint8_t *vOutBuffer;
-    Clock clock;
+//    Clock clock;
     double audioClock;
 
     void enQueue(AVPacket *packet);
