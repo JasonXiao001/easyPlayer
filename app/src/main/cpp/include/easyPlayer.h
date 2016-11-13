@@ -40,7 +40,8 @@ private:
     int serial;
     std::mutex mutex;
     std::condition_variable cond;
-
+    std::condition_variable full;
+    const size_t MAX_SIZE = 4;
 
 };
 
@@ -67,11 +68,13 @@ class FrameQueue {
 public:
     void put_frame(AVFrame *frame);
     std::shared_ptr<Frame> get_frame();
+    size_t get_size();
 private:
     std::queue<std::shared_ptr<Frame>> queue;
     std::mutex mutex;
     std::condition_variable empty;
     std::condition_variable full;
+    const size_t MAX_SIZE = 16;
 };
 
 class Decoder {
@@ -130,6 +133,7 @@ public:
     bool get_img_frame(AVFrame *frame);
     bool get_aud_buffer(int &nextSize, uint8_t *outputBuffer);
     void wait_state(PlayerState need_state);
+    void release();
 
     AVFormatContext *ic;
     char *filename;
