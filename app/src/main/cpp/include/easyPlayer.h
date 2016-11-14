@@ -41,7 +41,7 @@ private:
     std::mutex mutex;
     std::condition_variable cond;
     std::condition_variable full;
-    const size_t MAX_SIZE = 4;
+    const size_t MAX_SIZE = 8;
 
 };
 
@@ -157,7 +157,7 @@ private:
     int stream_component_open(int stream_index);
     void on_state_change(PlayerState state);
     int last_video_stream, last_audio_stream;
-    int video_stream;
+    int video_stream = -1;
     AVStream *video_st;
 
     double max_frame_duration;      // maximum duration of a frame - above this, we consider the jump a timestamp discontinuity
@@ -185,7 +185,7 @@ private:
     int frame_drops_late;
     int eof;
 
-    int audio_stream;
+    int audio_stream = -1;
     int av_sync_type;
 
     int64_t start_time = AV_NOPTS_VALUE;

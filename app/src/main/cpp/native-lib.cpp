@@ -22,6 +22,7 @@ EasyPlayer easyPlayer;
 
 void showPic() {
     easyPlayer.wait_state(PlayerState::READY);
+    if (!easyPlayer.has_video()) return;
     if (0 > ANativeWindow_setBuffersGeometry(nativeWindow, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height(), WINDOW_FORMAT_RGBA_8888)){
         LOGD("Couldn't set buffers geometry.\n");
         ANativeWindow_release(nativeWindow);

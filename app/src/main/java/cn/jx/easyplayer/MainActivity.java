@@ -60,8 +60,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             String folderurl = Environment.getExternalStorageDirectory().getPath();
-            String inputurl = folderurl+"/salina.mp3";
-//            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
+//            String inputurl = folderurl+"/jack.mp4";
+            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
 //            String inputurl = "http://1251659802.vod2.myqcloud.com/vod1251659802/9031868222807497694/f0.mp4";
             play(inputurl, surfaceViewHolder.getSurface());
         }

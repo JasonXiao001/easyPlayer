@@ -6,8 +6,10 @@
 
 
 int PacketQueue::put_packet(AVPacket *pkt) {
-    if (abort_request)
+    if (abort_request) {
+        av_log(NULL, AV_LOG_INFO, "put_packet abort.\n");
         return -1;
+    }
     int ret;
     std::unique_lock<std::mutex> lock(mutex);
     while (true) {
@@ -119,26 +121,29 @@ size_t FrameQueue::get_size() {
 
 void Decoder::init(AVCodecContext *ctx) {
     avctx = ctx;
+
 }
 
 
 void Decoder::start_decode_thread() {
+    pkt_queue.set_abort(0);
     std::thread t(&Decoder::decode, this);
     t.detach();
 }
 
 int VideoDecoder::get_height() {
+    if (!avctx) return 0;
     return avctx->height;
 }
 
 int VideoDecoder::get_width(){
+    if (!avctx) return 0;
     return avctx->width;
 }
 
 
 
 void VideoDecoder::decode() {
-    pkt_queue.set_abort(0);
     AVFrame *frame = av_frame_alloc();
     double pts;
     double duration;
@@ -202,7 +207,6 @@ int AudioDecoder::decoder_decode_frame() {
 
         if (pkt_queue.get_abort())
             return -1;
-
         if (!packet_pending || pkt_queue.get_serial() != pkt_serial) {
 
             if (pkt_queue.get_packet(&pkt) < 0) return -1;
@@ -210,18 +214,17 @@ int AudioDecoder::decoder_decode_frame() {
 //            d->pkt_temp = d->pkt = pkt;
 //            d->packet_pending = 1;
         }
-        av_log(NULL, AV_LOG_VERBOSE, "frame queue %d.\n", frame_queue.get_size());
         if (pkt.data == NULL) {
             av_log(NULL, AV_LOG_FATAL, "reach eof.\n");
             return -1;
         }
         ret = avcodec_send_packet(avctx, &pkt);
         if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-            return -1;
+            break;
         AVFrame *frame = av_frame_alloc();
         ret = avcodec_receive_frame(avctx, frame);
         if (ret < 0 && ret != AVERROR_EOF)
-            return -1;
+            break;
         frame->pts = av_frame_get_best_effort_timestamp(frame);
         frame_queue.put_frame(frame);
         if (ret < 0) {
@@ -231,12 +234,12 @@ int AudioDecoder::decoder_decode_frame() {
         }
     } while (ret != 0 && !finished);
 
-    return ret;
+    return 0;
 }
 
 
 void AudioDecoder::decode() {
-    pkt_queue.set_abort(0);
+
     AVFrame *frame = av_frame_alloc();
     for (;;) {
         if (pkt_queue.get_abort()) break;
@@ -276,6 +279,7 @@ void EasyPlayer::init(const std::string input_filename) {
 
 void EasyPlayer::read() {
     int err, i, ret;
+    av_log(NULL, AV_LOG_INFO, "start read thread.\n");
     AVPacket *pkt = (AVPacket *)av_malloc(sizeof(AVPacket));
     if (pkt == NULL) {
         av_log(NULL, AV_LOG_FATAL, "Could not allocate avPacket.\n");
@@ -314,9 +318,11 @@ void EasyPlayer::read() {
         }
     }
     if (st_index[AVMEDIA_TYPE_VIDEO] >= 0) {
+        av_log(NULL, AV_LOG_INFO, "start open video component at id %d.\n",st_index[AVMEDIA_TYPE_VIDEO]);
         stream_component_open(st_index[AVMEDIA_TYPE_VIDEO]);
     }
     if (st_index[AVMEDIA_TYPE_AUDIO] >= 0) {
+        av_log(NULL, AV_LOG_INFO, "start open audio component at id %d.\n",st_index[AVMEDIA_TYPE_AUDIO]);
         stream_component_open(st_index[AVMEDIA_TYPE_AUDIO]);
     }
     if (video_stream < 0 && audio_stream < 0) {
@@ -477,14 +483,14 @@ int VideoDecoder::decoder_decode_frame() {
         ret = avcodec_send_packet(avctx, &pkt);
         if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
             av_log(NULL, AV_LOG_FATAL, "video avcodec_send_packet error %d.\n", ret);
-            return -1;
+            break;
         }
 
         AVFrame *frame = av_frame_alloc();
         ret = avcodec_receive_frame(avctx, frame);
         if (ret < 0 && ret != AVERROR_EOF) {
             av_log(NULL, AV_LOG_FATAL, "video avcodec_receive_frame error %d.\n", ret);
-            return -1;
+            break;
         }
         frame->pts = av_frame_get_best_effort_timestamp(frame);
         frame_queue.put_frame(frame);
@@ -495,7 +501,7 @@ int VideoDecoder::decoder_decode_frame() {
         }
     } while (ret != 0 && !finished);
 
-    return ret;
+    return 0;
 }
 
 
@@ -525,7 +531,11 @@ bool EasyPlayer::get_img_frame(AVFrame *frame) {
 bool EasyPlayer::get_aud_buffer(int &nextSize, uint8_t *outputBuffer) {
     if (outputBuffer == nullptr) return false;
     auto av_frame = auddec.frame_queue.get_frame();
-    av_samples_get_buffer_size(&nextSize, auddec.avctx->channels, auddec.avctx->frame_size, auddec.avctx->sample_fmt, 1);
+    if (auddec.avctx->sample_fmt == AV_SAMPLE_FMT_S16P) {
+        nextSize = av_samples_get_buffer_size(av_frame->frame->linesize, auddec.avctx->channels, auddec.avctx->frame_size, auddec.avctx->sample_fmt, 1);
+    }else {
+        av_samples_get_buffer_size(&nextSize, auddec.avctx->channels, auddec.avctx->frame_size, auddec.avctx->sample_fmt, 1);
+    }
     int ret = swr_convert(swr_ctx, &outputBuffer, av_frame->frame->nb_samples,
                       (uint8_t const **) (av_frame->frame->extended_data),
                           av_frame->frame->nb_samples);
