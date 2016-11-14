@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context="cn.jx.easyplayer.MainActivity">
     <SurfaceView
-        android:id="@+id/surface"
+        android:id="@+id/video_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"/>
 </RelativeLayout>

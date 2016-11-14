@@ -15,6 +15,9 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.widget.RelativeLayout;
 
+import cn.jx.easyplayerlib.EasyPlayer;
+import cn.jx.easyplayerlib.view.VideoView;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
@@ -22,6 +25,8 @@ public class MainActivity extends AppCompatActivity {
     private SurfaceHolder surfaceViewHolder;
     private SurfaceView surfaceView;
     private Handler mainHandler = new Handler();
+//    EasyPlayer easyPlayer = new EasyPlayer();
+//    VideoView videoView;
 
 
     // Used to load the 'native-lib' library on application startup.
@@ -33,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        surfaceView = (SurfaceView) findViewById(R.id.surface);
+        surfaceView = (SurfaceView) findViewById(R.id.video_view);
         surfaceViewHolder = surfaceView.getHolder();
         surfaceViewHolder.addCallback(new SurfaceHolder.Callback() {
             @Override
@@ -53,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
+
     }
 
     class Play implements Runnable {
@@ -60,8 +66,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             String folderurl = Environment.getExternalStorageDirectory().getPath();
-//            String inputurl = folderurl+"/jack.mp4";
-            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
+            String inputurl = folderurl+"/jack.mp4";
+//            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
 //            String inputurl = "http://1251659802.vod2.myqcloud.com/vod1251659802/9031868222807497694/f0.mp4";
             play(inputurl, surfaceViewHolder.getSurface());
         }
