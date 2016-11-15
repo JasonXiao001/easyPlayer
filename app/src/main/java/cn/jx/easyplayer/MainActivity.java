@@ -13,10 +13,10 @@ import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
+import android.widget.Button;
 import android.widget.RelativeLayout;
 
-import cn.jx.easyplayerlib.EasyPlayer;
-import cn.jx.easyplayerlib.view.VideoView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -56,9 +56,22 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+        Button pause = (Button) findViewById(R.id.pause);
+        pause.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                togglePaused();
+            }
+        });
 
 
 
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        togglePaused();
     }
 
     class Play implements Runnable {
@@ -66,9 +79,10 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             String folderurl = Environment.getExternalStorageDirectory().getPath();
-            String inputurl = folderurl+"/jack.mp4";
-//            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
+//            String inputurl = folderurl+"/jack.mp4";
+            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
 //            String inputurl = "http://1251659802.vod2.myqcloud.com/vod1251659802/9031868222807497694/f0.mp4";
+//            String inputurl = "rtmp://2107.liveplay.myqcloud.com/live/2107_3100673b756411e69776e435c87f075e";
             play(inputurl, surfaceViewHolder.getSurface());
         }
     }
@@ -93,5 +107,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public native int play(String url, Surface surface);
+
+    public native void togglePaused();
 
 }

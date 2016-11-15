@@ -35,6 +35,9 @@ void showPic() {
     while (easyPlayer.get_img_frame(frameRGBA)) {
         if (ANativeWindow_lock(nativeWindow, &windowBuffer, NULL) < 0) {
             LOGD("cannot lock window");
+            if (easyPlayer.get_paused()) {
+                easyPlayer.wait_paused();
+            }
         } else {
             uint8_t *dst = (uint8_t *) windowBuffer.bits;
             for (int h = 0; h < easyPlayer.viddec.get_height(); h++)
@@ -130,6 +133,13 @@ Java_cn_jx_easyplayer_MainActivity_play
 
 }
 
+
+extern "C"
+void
+Java_cn_jx_easyplayer_MainActivity_togglePaused
+        (JNIEnv *env, jobject obj) {
+    easyPlayer.togglePaused();
+}
 
 
 

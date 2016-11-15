@@ -1,5 +1,5 @@
 //
-// Created by Administrator on 2016/11/10.
+// Created by JasonXiao on 2016/11/10.
 //
 
 #include "easyPlayer.h"
@@ -332,6 +332,10 @@ void EasyPlayer::read() {
     while(true) {
         if (abort_request)
             break;
+        if (paused)
+            av_read_pause(ic);
+        else
+            av_read_play(ic);
         ret = av_read_frame(ic, pkt);
         if (ret < 0) {
             if ((ret == AVERROR_EOF || avio_feof(ic->pb)) && !eof) {
@@ -562,6 +566,13 @@ void EasyPlayer::release() {
     if (ic) {
         avformat_close_input(&ic);
     }
+}
+
+void EasyPlayer::wait_paused() {
+    std::unique_lock<std::mutex> lock(mutex);
+    pause_condition.wait(lock, [this] {
+        return !this->paused;
+    });
 }
 
 
