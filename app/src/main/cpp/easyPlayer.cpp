@@ -144,59 +144,14 @@ int VideoDecoder::get_width(){
 
 
 void VideoDecoder::decode() {
-    AVFrame *frame = av_frame_alloc();
-    double pts;
-    double duration;
-    int ret;
-//    AVRational tb = video_st->time_base;
-//    AVRational frame_rate = av_guess_frame_rate(ic, video_st, NULL);
-//    if (!frame) {
-//        return AVERROR(ENOMEM);
-//    }
+
     for (;;) {
         if (pkt_queue.get_abort()) break;
         int got_picture;
         if ((got_picture = decoder_decode_frame()) < 0)
             return;
 
-        if (got_picture) {
-            double dpts = NAN;
-//            if (frame->pts != AV_NOPTS_VALUE)
-//                dpts = av_q2d(is->video_st->time_base) * frame->pts;
-//
-//            frame->sample_aspect_ratio = av_guess_sample_aspect_ratio(is->ic, is->video_st, frame);
-//
-//            if (framedrop>0 || (framedrop && get_master_sync_type(is) != AV_SYNC_VIDEO_MASTER)) {
-//                if (frame->pts != AV_NOPTS_VALUE) {
-//                    double diff = dpts - get_master_clock(is);
-//                    if (!isnan(diff) && fabs(diff) < AV_NOSYNC_THRESHOLD &&
-//                        diff - is->frame_last_filter_delay < 0 &&
-//                        is->viddec.pkt_serial == is->vidclk.serial &&
-//                        is->videoq.nb_packets) {
-//                        is->frame_drops_early++;
-//                        av_frame_unref(frame);
-//                        got_picture = 0;
-//                    }
-//                }
-//            }
-        }
-//
-//
-//        if (ret < 0)
-//            goto the_end;
-//        if (!ret)
-//            continue;
-//
-//        duration = (frame_rate.num && frame_rate.den ? av_q2d((AVRational){frame_rate.den, frame_rate.num}) : 0);
-//        pts = (frame->pts == AV_NOPTS_VALUE) ? NAN : frame->pts * av_q2d(tb);
-//        ret = queue_picture(is, frame, pts, duration, av_frame_get_pkt_pos(frame), is->viddec.pkt_serial);
-//        av_frame_unref(frame);
-//
-//        if (ret < 0)
-//            goto the_end;
     }
-
-//    av_frame_free(&frame);
 }
 
 
@@ -210,9 +165,6 @@ int AudioDecoder::decoder_decode_frame() {
         if (!packet_pending || pkt_queue.get_serial() != pkt_serial) {
 
             if (pkt_queue.get_packet(&pkt) < 0) return -1;
-//            av_packet_unref(&d->pkt);
-//            d->pkt_temp = d->pkt = pkt;
-//            d->packet_pending = 1;
         }
         if (pkt.data == NULL) {
             av_log(NULL, AV_LOG_FATAL, "reach eof.\n");
@@ -457,31 +409,12 @@ int VideoDecoder::decoder_decode_frame() {
         if (pkt_queue.get_abort())
             return -1;
         if (!packet_pending || pkt_queue.get_serial() != pkt_serial) {
-//            do {
-//                if (queue.get_packet(pkt) < 0) return -1;
-//
-//
-//
-//
-//                if (queue.get_queue_size() == 0)
-////                    SDL_CondSignal(d->empty_queue_cond);
-//                if (packet_queue_get(d->queue, &pkt, 1, &d->pkt_serial) < 0)
-//                    return -1;
-//                if (pkt.data == flush_pkt.data) {
-//                    avcodec_flush_buffers(d->avctx);
-//                    d->finished = 0;
-//                    d->next_pts = d->start_pts;
-//                    d->next_pts_tb = d->start_pts_tb;
-//                }
-//            } while (pkt.data == flush_pkt.data || d->queue->serial != d->pkt_serial);
             if (pkt_queue.get_packet(&pkt) < 0) return -1;
             if (pkt.data == NULL) {
                 av_log(NULL, AV_LOG_FATAL, "reach eof.\n");
                 return -1;
             }
-//            av_packet_unref(&d->pkt);
-//            d->pkt_temp = d->pkt = pkt;
-//            d->packet_pending = 1;
+
         }
         ret = avcodec_send_packet(avctx, &pkt);
         if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
