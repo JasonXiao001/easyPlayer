@@ -2,6 +2,7 @@ package cn.jx.easyplayer;
 
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -17,16 +18,18 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
+import cn.jx.easyplayerlib.EasyPlayer;
+import cn.jx.easyplayerlib.events.VideoEventListener;
 
-public class MainActivity extends AppCompatActivity {
+
+public class MainActivity extends AppCompatActivity implements VideoEventListener{
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private SurfaceHolder surfaceViewHolder;
     private SurfaceView surfaceView;
     private Handler mainHandler = new Handler();
-//    EasyPlayer easyPlayer = new EasyPlayer();
-//    VideoView videoView;
+    EasyPlayer easyPlayer = new EasyPlayer();
 
 
     // Used to load the 'native-lib' library on application startup.
@@ -61,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 togglePaused();
+
             }
         });
 
@@ -74,21 +78,24 @@ public class MainActivity extends AppCompatActivity {
         togglePaused();
     }
 
+
+
     class Play implements Runnable {
 
         @Override
         public void run() {
             String folderurl = Environment.getExternalStorageDirectory().getPath();
-//            String inputurl = folderurl+"/jack.mp4";
-            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
+            String inputurl = folderurl+"/jack.mp4";
+//            String inputurl = "http://200000291.vod.myqcloud.com/200000291_5bdb30893e5848188f9f8d29c24b1fa6.f0.mp4";
 //            String inputurl = "http://1251659802.vod2.myqcloud.com/vod1251659802/9031868222807497694/f0.mp4";
 //            String inputurl = "rtmp://2107.liveplay.myqcloud.com/live/2107_3100673b756411e69776e435c87f075e";
-            play(inputurl, surfaceViewHolder.getSurface());
+//            play(inputurl, surfaceViewHolder.getSurface());
+            easyPlayer.play(inputurl, surfaceViewHolder.getSurface());
         }
     }
 
-    private void onResolutionChange(final int width,final int height){
-        Log.d(TAG, "height: "+height+" width:"+width);
+    @Override
+    public void onResolutionChange(final int width,final int height){
         Display display = getWindowManager().getDefaultDisplay();
         final int displayWidth = display.getWidth();
         mainHandler.post(new Runnable(){

@@ -23,21 +23,14 @@ public class EasyPlayer {
         System.loadLibrary("player-lib");
     }
 
+
     public native void play(String url, Surface surface);
 
     private void onResolutionChange(final int width,final int height){
         Log.d(TAG, "height: "+height+" width:"+width);
-//        if (videoEventListener != null) {
-//            mainHandler.post(new Runnable(){
-//
-//                @Override
-//                public void run() {
-//                    videoEventListener.onResolutionChange(width, height);
-//                }
-//
-//            });
-//
-//        }
+        if (videoEventListener != null) {
+            videoEventListener.onResolutionChange(width, height);
+        }
 
 
     }
