@@ -10,7 +10,6 @@
 #include <jni.h>
 #include <pthread.h>
 #include <assert.h>
-#include <player.h>
 #include "easyPlayer.h"
 
 

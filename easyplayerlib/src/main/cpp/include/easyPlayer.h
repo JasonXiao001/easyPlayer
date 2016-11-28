@@ -32,6 +32,7 @@ public:
     void set_abort(int abort);
     int get_abort();
     int get_serial();
+    void flush();
     size_t get_queue_size();
 private:
     std::queue<AVPacket> queue;
@@ -69,6 +70,7 @@ public:
     void put_frame(AVFrame *frame);
     std::shared_ptr<Frame> get_frame();
     size_t get_size();
+    int64_t frame_queue_last_pos();
 private:
     std::queue<std::shared_ptr<Frame>> queue;
     std::mutex mutex;
@@ -128,21 +130,32 @@ enum class PlayerState {
 class EasyPlayer {
 public:
     EasyPlayer() = default;
+    void set_data_source(const std::string input_filename);
     void init(const std::string input_filename);
+    void prepare();
     bool has_video();
     bool get_img_frame(AVFrame *frame);
     bool get_aud_buffer(int &nextSize, uint8_t *outputBuffer);
     void wait_state(PlayerState need_state);
+    void wait_paused();
     void release();
-
+    void togglePaused() {
+        std::unique_lock<std::mutex> lock(mutex);
+        paused = !paused;
+        pause_condition.notify_all();
+    }
+    bool get_paused() {
+        return paused;
+    }
+    void stream_seek(int64_t pos);
     AVFormatContext *ic;
     char *filename;
     int abort_request;
     int force_refresh;
-    int paused;
+
     int last_paused;
     int queue_attachments_req;
-    int seek_req;
+    bool seek_req = false;
     int seek_flags;
     int64_t seek_pos;
     int64_t seek_rel;
@@ -159,7 +172,7 @@ private:
     int last_video_stream, last_audio_stream;
     int video_stream = -1;
     AVStream *video_st;
-
+    bool paused = false;
     double max_frame_duration;      // maximum duration of a frame - above this, we consider the jump a timestamp discontinuity
     struct SwsContext *img_convert_ctx;
 
@@ -192,6 +205,7 @@ private:
     int64_t duration = AV_NOPTS_VALUE;
     std::mutex mutex;
     std::condition_variable state_condition;
+    std::condition_variable pause_condition;
 
 };
 

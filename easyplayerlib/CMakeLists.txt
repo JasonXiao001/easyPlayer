@@ -28,8 +28,7 @@ set_target_properties(swscale-4_lib PROPERTIES IMPORTED_LOCATION
 
 # build application's shared lib
 add_library(player-lib SHARED
-            ${CMAKE_SOURCE_DIR}/src/main/cpp/native-lib.cpp
-            ${CMAKE_SOURCE_DIR}/src/main/cpp/player.cpp
+            ${CMAKE_SOURCE_DIR}/src/main/cpp/easyplayer-lib.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/opensles.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/easyPlayer.cpp)
 

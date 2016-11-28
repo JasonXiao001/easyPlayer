@@ -32,6 +32,7 @@ public:
     void set_abort(int abort);
     int get_abort();
     int get_serial();
+    void flush();
     size_t get_queue_size();
 private:
     std::queue<AVPacket> queue;
@@ -69,6 +70,7 @@ public:
     void put_frame(AVFrame *frame);
     std::shared_ptr<Frame> get_frame();
     size_t get_size();
+    int64_t frame_queue_last_pos();
 private:
     std::queue<std::shared_ptr<Frame>> queue;
     std::mutex mutex;
@@ -143,6 +145,7 @@ public:
     bool get_paused() {
         return paused;
     }
+    void stream_seek(int64_t pos);
     AVFormatContext *ic;
     char *filename;
     int abort_request;
@@ -150,7 +153,7 @@ public:
 
     int last_paused;
     int queue_attachments_req;
-    int seek_req;
+    bool seek_req = false;
     int seek_flags;
     int64_t seek_pos;
     int64_t seek_rel;

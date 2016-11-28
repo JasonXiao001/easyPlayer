@@ -57,6 +57,19 @@ int PacketQueue::get_packet(AVPacket *pkt) {
 }
 
 
+void PacketQueue::flush() {
+    std::unique_lock<std::mutex> lock(mutex);
+    while (queue.size() > 0) {
+        AVPacket tmp = queue.front();
+        queue.pop();
+        av_packet_unref(&tmp);
+    }
+    duration = 0;
+    full.notify_one();
+
+}
+
+
 int PacketQueue::put_nullpacket() {
     AVPacket *pkt = new AVPacket();
     av_init_packet(pkt);
@@ -113,6 +126,15 @@ void FrameQueue::put_frame(AVFrame *frame) {
     }
 
 }
+
+
+
+int64_t FrameQueue::frame_queue_last_pos() {
+    auto frame = queue.back();
+    return frame->frame->pkt_pos;
+}
+
+
 
 size_t FrameQueue::get_size() {
     return queue.size();
@@ -237,17 +259,19 @@ void EasyPlayer::read() {
         av_log(NULL, AV_LOG_FATAL, "Could not allocate avPacket.\n");
         return;
     }
+    av_log(NULL, AV_LOG_INFO, "start read thread!!!!.\n");
     int64_t stream_start_time;
     int64_t pkt_ts;
     int pkt_in_play_range = 0;
     int st_index[AVMEDIA_TYPE_NB];
     memset(st_index, -1, sizeof(st_index));
+    av_log(NULL, AV_LOG_INFO, "start avformat_alloc_context.\n");
     ic = avformat_alloc_context();
     if (!ic) {
         av_log(NULL, AV_LOG_FATAL, "Could not allocate context.\n");
         return;
     }
-
+    av_log(NULL, AV_LOG_INFO, "start avformat_open_input. file path %s\n", filename);
     err = avformat_open_input(&ic, filename, NULL, NULL);
     if (err < 0) {
         av_log(NULL, AV_LOG_FATAL, "Could not open input file.\n");
@@ -288,6 +312,26 @@ void EasyPlayer::read() {
             av_read_pause(ic);
         else
             av_read_play(ic);
+        if (seek_req) {
+
+            ret = av_seek_frame(ic, -1, seek_pos * AV_TIME_BASE, 0);
+            if (ret < 0) {
+                av_log(NULL, AV_LOG_ERROR,
+                       "%s: error while seeking\n", filename);
+            } else {
+                if (audio_stream >= 0) {
+                    auddec.pkt_queue.flush();
+                }
+                if (video_stream >= 0) {
+                    viddec.pkt_queue.flush();
+                }
+            }
+            seek_req = false;
+            queue_attachments_req = 1;
+            eof = 0;
+//            if (paused)
+//                step_to_next_frame(is);
+        }
         ret = av_read_frame(ic, pkt);
         if (ret < 0) {
             if ((ret == AVERROR_EOF || avio_feof(ic->pb)) && !eof) {
@@ -506,6 +550,14 @@ void EasyPlayer::wait_paused() {
     pause_condition.wait(lock, [this] {
         return !this->paused;
     });
+}
+
+
+void EasyPlayer::stream_seek(int64_t pos) {
+    if (!seek_req) {
+        seek_pos = pos;
+        seek_req = true;
+    }
 }
 
 

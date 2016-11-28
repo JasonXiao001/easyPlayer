@@ -60,10 +60,6 @@ void playAudio() {
     audioStart();
 }
 
-void decode() {
-    player.decode();
-    player.start();
-}
 
 void log(void* ptr, int level, const char* fmt,va_list vl) {
     switch (level) {
@@ -95,7 +91,7 @@ void log(void* ptr, int level, const char* fmt,va_list vl) {
 
 extern "C"
 void
-Java_cn_jx_easyplayer_MainActivity_play
+Java_cn_jx_easyplayer_EasyPlayer_play
         (JNIEnv *env, jobject obj, jstring url, jobject surface) {
 
     char inputStr[500] = {0};
@@ -125,11 +121,9 @@ Java_cn_jx_easyplayer_MainActivity_play
     if (easyPlayer.has_video()) {
         env->CallVoidMethod(obj, gOnResolutionChange, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height());
     }
-//    std::thread decodeThread(decode);
 
     audioThread.join();
     videoThread.join();
-//    decodeThread.join();
 
 }
 
@@ -138,7 +132,7 @@ extern "C"
 void
 Java_cn_jx_easyplayer_MainActivity_togglePaused
         (JNIEnv *env, jobject obj) {
-    easyPlayer.togglePaused();
+    easyPlayer.stream_seek(100);
 }
 
 

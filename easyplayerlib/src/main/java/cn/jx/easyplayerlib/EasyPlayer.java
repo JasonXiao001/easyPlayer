@@ -26,6 +26,8 @@ public class EasyPlayer {
 
     public native void play(String url, Surface surface);
 
+//    public native void pause()
+
     private void onResolutionChange(final int width,final int height){
         Log.d(TAG, "height: "+height+" width:"+width);
         if (videoEventListener != null) {

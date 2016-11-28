@@ -3,6 +3,9 @@
 //
 
 #include "include/opensles.h"
+#include <android/log.h>
+
+#define LOGD(format, ...)  __android_log_print(ANDROID_LOG_INFO,  "native-lib", format, ##__VA_ARGS__)
 
 
 SLObjectItf engineObject = NULL;
