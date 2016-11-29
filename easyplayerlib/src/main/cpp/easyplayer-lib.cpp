@@ -55,13 +55,6 @@ Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1nativeInit
 }
 
 
-void test() {
-    JNIEnv *env = NULL;
-    if (0 == gVm->AttachCurrentThread(&env, NULL)) {
-        env->CallVoidMethod(gObj, gPostEventFromNative, MEDIA_SET_VIDEO_SIZE, mPlayer->viddec.get_width(), mPlayer->viddec.get_height());
-        gVm->DetachCurrentThread();
-    }
-}
 
 
 void showPic() {
@@ -73,12 +66,14 @@ void showPic() {
         return;
     }
     LOGD("Start display.\n");
-    test();
     AVFrame *frameRGBA = av_frame_alloc();
     int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, mPlayer->viddec.get_width(), mPlayer->viddec.get_height(),1);
     uint8_t *vOutBuffer = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
     av_image_fill_arrays(frameRGBA->data, frameRGBA->linesize, vOutBuffer, AV_PIX_FMT_RGBA, mPlayer->viddec.get_width(), mPlayer->viddec.get_height(), 1);
     while (mPlayer->get_img_frame(frameRGBA)) {
+        if (mPlayer->get_paused()) {
+            mPlayer->wait_paused();
+        }
         if (ANativeWindow_lock(nativeWindow, &windowBuffer, NULL) < 0) {
             LOGD("cannot lock window");
         } else {
@@ -101,6 +96,14 @@ void playAudio() {
     createAudioEngine();
     createBufferQueueAudioPlayer(mPlayer->auddec.get_sample_rate(), mPlayer->auddec.get_channels());
     audioStart();
+}
+
+void listener(int what, int arg1, int arg2) {
+    JNIEnv *env = NULL;
+    if (0 == gVm->AttachCurrentThread(&env, NULL)) {
+        env->CallVoidMethod(gObj, gPostEventFromNative, what, arg1, arg2);
+        gVm->DetachCurrentThread();
+    }
 }
 
 
@@ -177,7 +180,7 @@ extern "C"
 void
 Java_cn_jx_easyplayer_MainActivity_togglePaused
         (JNIEnv *env, jobject obj) {
-    easyPlayer.togglePaused();
+    easyPlayer.pause();
 }
 
 
@@ -199,6 +202,7 @@ Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1setDataSource
     av_log_set_callback(log);
     mPlayer->set_data_source(inputStr);
     init(mPlayer);
+    mPlayer->set_event_listener(listener);
 }
 
 
@@ -221,10 +225,17 @@ void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1prepareAsync
         (JNIEnv *env, jobject obj) {
     mPlayer->prepare();
+}
+
+extern "C"
+void
+Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1start
+        (JNIEnv *env, jobject obj) {
+    mPlayer->play();
     std::thread videoThread(showPic);
     std::thread audioThread(playAudio);
-    audioThread.join();
-    videoThread.join();
+    audioThread.detach();
+    videoThread.detach();
 }
 
 
@@ -232,14 +243,70 @@ extern "C"
 void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1pause
         (JNIEnv *env, jobject obj) {
-    if (!mPlayer->get_paused()) {
-        mPlayer->togglePaused();
+    mPlayer->pause();
+
+}
+
+
+extern "C"
+bool
+Java_cn_jx_easyplayerlib_player_EasyMediaPlayer_isPlaying
+        (JNIEnv *env, jobject obj) {
+    if (mPlayer != nullptr) {
+       return mPlayer->is_playing();
+    }
+    return false;
+
+}
+
+
+extern "C"
+long
+Java_cn_jx_easyplayerlib_player_EasyMediaPlayer_getDuration
+        (JNIEnv *env, jobject obj) {
+    if (mPlayer != nullptr) {
+        return (long)mPlayer->get_duration();
+    }
+    return 0;
+
+}
+
+
+extern "C"
+long
+Java_cn_jx_easyplayerlib_player_EasyMediaPlayer_getCurrentPosition
+        (JNIEnv *env, jobject obj) {
+    if (mPlayer != nullptr) {
+        return mPlayer->get_curr_position();
+    }
+    return 0;
+
+}
+
+
+extern "C"
+void
+Java_cn_jx_easyplayerlib_player_EasyMediaPlayer_seekTo
+        (JNIEnv *env, jobject obj, jlong mSec) {
+    if (mPlayer != nullptr) {
+        if (mSec < 0) mSec = 0;
+        if (mSec > mPlayer->get_duration()) mSec = mPlayer->get_duration() - 1000;
+        mPlayer->stream_seek(mSec/1000);
     }
 
 }
 
 
 
+extern "C"
+void
+Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1release
+        (JNIEnv *env, jobject obj, jlong mSec) {
+    if (mPlayer != nullptr) {
+        mPlayer->release();
+    }
+
+}
 
 
 

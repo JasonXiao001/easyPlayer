@@ -303,6 +303,12 @@ void EasyPlayer::read() {
         release();
     }
     on_state_change(PlayerState::READY);
+    if (event_listener != nullptr) {
+        event_listener(MEDIA_PREPARED, 0, 0);
+        if (video_stream >= 0) {
+            event_listener(MEDIA_SET_VIDEO_SIZE, viddec.get_width(), viddec.get_height());
+        }
+    }
     while(true) {
         if (abort_request)
             break;
@@ -361,6 +367,7 @@ void EasyPlayer::read() {
             av_packet_unref(pkt);
         }
     }
+
 }
 
 
@@ -573,7 +580,7 @@ void EasyPlayer::prepare() {
     av_register_all();
     avformat_network_init();
     std::thread read_thread(&EasyPlayer::read, this);
-    read_thread.detach();
+    read_thread.join();
 }
 
 

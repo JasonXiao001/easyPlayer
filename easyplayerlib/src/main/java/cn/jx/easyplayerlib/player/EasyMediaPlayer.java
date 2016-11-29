@@ -52,6 +52,9 @@ public class EasyMediaPlayer extends AbstractMediaPlayer {
                     mVideoHeight = msg.arg2;
                     notifyOnVideoSizeChanged(mVideoWidth, mVideoHeight);
                     break;
+                case MEDIA_PREPARED:
+                    EasyLog.d(TAG, "on media prepared ");
+                    notifyOnPrepared();
 
             }
             return true;
@@ -162,8 +165,10 @@ public class EasyMediaPlayer extends AbstractMediaPlayer {
 
     @Override
     public void start() throws IllegalStateException {
-        EasyLog.d(TAG, "");
+        _start();
     }
+
+    private native void _start() throws IllegalStateException;
 
     @Override
     public void stop() throws IllegalStateException {
@@ -188,29 +193,26 @@ public class EasyMediaPlayer extends AbstractMediaPlayer {
     }
 
     @Override
-    public boolean isPlaying() {
-        return false;
-    }
+    public native boolean isPlaying();
 
     @Override
-    public void seekTo(long msec) throws IllegalStateException {
-
-    }
+    public native void seekTo(long msec) throws IllegalStateException;
 
     @Override
-    public long getCurrentPosition() {
-        return 0;
-    }
+    public native long getCurrentPosition();
 
     @Override
-    public long getDuration() {
-        return 0;
-    }
+    public native long getDuration();
 
     @Override
     public void release() {
-
+//        stayAwake(false);
+        updateSurfaceScreenOn();
+        resetListeners();
+        _release();
     }
+
+    private native void _release();
 
     @Override
     public void reset() {

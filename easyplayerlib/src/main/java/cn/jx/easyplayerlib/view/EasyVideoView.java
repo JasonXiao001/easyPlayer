@@ -49,6 +49,8 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
     private int mSurfaceWidth;
     private int mSurfaceHeight;
 
+    private int mCurrentState = STATE_IDLE;
+
 
     public EasyVideoView(Context context) {
         super(context);
@@ -86,32 +88,49 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
 
     @Override
     public void start() {
-        mMediaPlayer.start();
+        if (mMediaPlayer != null) {
+            mMediaPlayer.start();
+        }
+
     }
 
     @Override
     public void pause() {
-        mMediaPlayer.pause();
+        if (mMediaPlayer != null) {
+            mMediaPlayer.pause();
+        }
+
     }
 
     @Override
     public int getDuration() {
-        return 0;
+        if (mMediaPlayer != null && mCurrentState >= STATE_PREPARED) {
+            return (int)mMediaPlayer.getDuration();
+        }
+        return -1;
     }
 
     @Override
     public int getCurrentPosition() {
+        if (mMediaPlayer != null && mCurrentState >= STATE_PREPARED) {
+            return (int)mMediaPlayer.getCurrentPosition();
+        }
         return 0;
     }
 
     @Override
     public void seekTo(int pos) {
-
+        if (mMediaPlayer != null && mCurrentState >= STATE_PREPARED) {
+            mMediaPlayer.seekTo(pos);
+        }
+//        else {
+//            mSeekWhenPrepared = msec;
+//        }
     }
 
     @Override
     public boolean isPlaying() {
-        return false;
+        return mMediaPlayer.isPlaying();
     }
 
     @Override
@@ -121,17 +140,17 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
 
     @Override
     public boolean canPause() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean canSeekBackward() {
-        return false;
+        return true;
     }
 
     @Override
     public boolean canSeekForward() {
-        return false;
+        return true;
     }
 
     /**
@@ -210,6 +229,7 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
         EasyLog.i(TAG, "video view is ready,creating player");
         mMediaPlayer = new EasyMediaPlayer();
         mMediaPlayer.setOnVideoSizeChangedListener(mSizeChangedListener);
+        mMediaPlayer.setOnPreparedListener(mPreparedListener);
         try {
             mMediaPlayer.setDataSource(mUri);
             mMediaPlayer.setSurface(mSurfaceHolder.getSurface());
@@ -217,13 +237,16 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
                 @Override
                 public void run() {
                     mMediaPlayer.prepareAsync();
+                    mCurrentState = STATE_PREPARING;
                 }
             }).start();
-            mMediaController = new MediaController(getContext());
-            mMediaController.setMediaPlayer(this);
-            mMediaController.setAnchorView(this);
-            mMediaController.setEnabled(true);
-            mMediaController.show();
+            if (mMediaController == null) {
+                mMediaController = new MediaController(getContext());
+                mMediaController.setMediaPlayer(this);
+                mMediaController.setAnchorView(this);
+                mMediaController.setEnabled(true);
+                mMediaController.show();
+            }
 
         }catch (Exception e) {
 
@@ -233,11 +256,10 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
 
 
     private boolean isInPlaybackState() {
-//        return (mMediaPlayer != null &&
-//                mCurrentState != STATE_ERROR &&
-//                mCurrentState != STATE_IDLE &&
-//                mCurrentState != STATE_PREPARING);
-        return true;
+        return (mMediaPlayer != null &&
+                mCurrentState != STATE_ERROR &&
+                mCurrentState != STATE_IDLE &&
+                mCurrentState != STATE_PREPARING);
     }
 
     private void toggleMediaControlsVisiblity() {
@@ -267,4 +289,11 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
                     }
                 }
             };
+
+
+    IMediaPlayer.OnPreparedListener mPreparedListener = new IMediaPlayer.OnPreparedListener() {
+        public void onPrepared(IMediaPlayer mp) {
+            mCurrentState = STATE_PREPARED;
+        }
+    };
 }

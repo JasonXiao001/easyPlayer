@@ -116,6 +116,8 @@ public:
     virtual void decode() override ;
     int get_channels();
     int get_sample_rate();
+private:
+
 };
 
 
@@ -124,6 +126,7 @@ enum class PlayerState {
     INIT,
     BUFFERING,
     READY,
+    PLAYING,
 };
 
 
@@ -139,15 +142,41 @@ public:
     void wait_state(PlayerState need_state);
     void wait_paused();
     void release();
-    void togglePaused() {
-        std::unique_lock<std::mutex> lock(mutex);
-        paused = !paused;
-        pause_condition.notify_all();
+    bool is_playing() {
+        return state == PlayerState::PLAYING && !paused;
+    }
+    void play() {
+        if (state == PlayerState::READY) {
+            state = PlayerState::PLAYING;
+            paused = false;
+        }
+        play_when_ready = true;
+    }
+    void pause() {
+        av_log(NULL, AV_LOG_VERBOSE, "pause called,current state %d\n", state);
+        if (state == PlayerState::PLAYING) {
+            std::unique_lock<std::mutex> lock(mutex);
+            paused = true;
+            pause_condition.notify_all();
+            state = PlayerState::READY;
+        }
+
     }
     bool get_paused() {
         return paused;
     }
+    int64_t get_duration() {
+        if (ic != nullptr) {
+            return ic->duration/1000;
+        }
+    };
+    long get_curr_position() {
+        return (long)audio_clock * 1000;
+    };
     void stream_seek(int64_t pos);
+    void set_event_listener(void (*cb)(int, int, int)) {
+        event_listener = cb;
+    }
     AVFormatContext *ic;
     char *filename;
     int abort_request;
@@ -173,6 +202,9 @@ private:
     int video_stream = -1;
     AVStream *video_st;
     bool paused = false;
+    bool play_when_ready = false;
+    void (*event_listener)(int, int, int);
+
     double max_frame_duration;      // maximum duration of a frame - above this, we consider the jump a timestamp discontinuity
     struct SwsContext *img_convert_ctx;
 
@@ -206,6 +238,17 @@ private:
     std::mutex mutex;
     std::condition_variable state_condition;
     std::condition_variable pause_condition;
+
+
+    static const int MEDIA_NOP = 0; // interface test message
+    static const int MEDIA_PREPARED = 1;
+    static const int MEDIA_PLAYBACK_COMPLETE = 2;
+    static const int MEDIA_BUFFERING_UPDATE = 3;
+    static const int MEDIA_SEEK_COMPLETE = 4;
+    static const int MEDIA_SET_VIDEO_SIZE = 5;
+    static const int MEDIA_TIMED_TEXT = 99;
+    static const int MEDIA_ERROR = 100;
+    static const int MEDIA_INFO = 200;
 
 };
 
