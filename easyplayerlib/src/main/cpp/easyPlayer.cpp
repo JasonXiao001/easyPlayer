@@ -580,7 +580,7 @@ void EasyPlayer::prepare() {
     av_register_all();
     avformat_network_init();
     std::thread read_thread(&EasyPlayer::read, this);
-    read_thread.join();
+    read_thread.detach();
 }
 
 

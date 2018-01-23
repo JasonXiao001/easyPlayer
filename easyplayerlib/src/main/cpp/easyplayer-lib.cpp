@@ -4,6 +4,7 @@
 #include <mutex>
 #include <android/log.h>
 #include <opensles.h>
+#include "player.h"
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
@@ -196,13 +197,15 @@ extern "C"
 void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1setDataSource
         (JNIEnv *env, jobject obj, jstring path) {
-    mPlayer = new EasyPlayer();
-    char inputStr[500] = {0};
-    sprintf(inputStr, "%s", env->GetStringUTFChars(path, NULL));
-    av_log_set_callback(log);
-    mPlayer->set_data_source(inputStr);
-    init(mPlayer);
-    mPlayer->set_event_listener(listener);
+//    mPlayer = new EasyPlayer();
+//    char inputStr[500] = {0};
+//    sprintf(inputStr, "%s", env->GetStringUTFChars(path, NULL));
+//
+//    av_log_set_callback(log);
+//    mPlayer->set_data_source(inputStr);
+//    init(mPlayer);
+//    mPlayer->set_event_listener(listener);
+    Player::Instance().SetDataSource(env->GetStringUTFChars(path, NULL));
 }
 
 
@@ -224,7 +227,8 @@ extern "C"
 void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1prepareAsync
         (JNIEnv *env, jobject obj) {
-    mPlayer->prepare();
+//    mPlayer->prepare();
+    Player::Instance().prepare();
 }
 
 extern "C"
