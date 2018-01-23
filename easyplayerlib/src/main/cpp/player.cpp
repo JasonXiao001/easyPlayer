@@ -22,14 +22,6 @@ Player::~Player() {
 
 void Player::Prepare() {
     int err, i, ret;
-    av_log(NULL, AV_LOG_INFO, "start read thread.\n");
-    AVPacket *pkt = (AVPacket *)av_malloc(sizeof(AVPacket));
-    if (pkt == NULL) {
-        av_log(NULL, AV_LOG_FATAL, "Could not allocate avPacket.\n");
-        return;
-    }
-    int64_t stream_start_time;
-    int64_t pkt_ts;
     int pkt_in_play_range = 0;
     int st_index[AVMEDIA_TYPE_NB];
     memset(st_index, -1, sizeof(st_index));
