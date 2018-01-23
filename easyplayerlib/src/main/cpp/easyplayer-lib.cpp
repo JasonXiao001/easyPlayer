@@ -177,20 +177,6 @@ Java_cn_jx_easyplayerlib_EasyPlayer_play
 }
 
 
-extern "C"
-void
-Java_cn_jx_easyplayer_MainActivity_togglePaused
-        (JNIEnv *env, jobject obj) {
-    easyPlayer.pause();
-}
-
-
-//extern "C"
-//void
-//Java_cn_jx_easyplayer_MainActivity_togglePaused
-//        (JNIEnv *env, jobject obj, int seek_pos) {
-//    easyPlayer.stream_seek(seek_pos);
-//}
 
 
 extern "C"
@@ -228,7 +214,7 @@ void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1prepareAsync
         (JNIEnv *env, jobject obj) {
 //    mPlayer->prepare();
-    Player::Instance().prepare();
+    Player::Instance().Prepare();
 }
 
 extern "C"

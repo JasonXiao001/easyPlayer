@@ -1,12 +1,8 @@
 package cn.jx.easyplayerlib.view;
 
 import android.content.Context;
-import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.AttributeSet;
 import android.view.Display;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.Surface;
@@ -19,7 +15,6 @@ import android.widget.RelativeLayout;
 import cn.jx.easyplayerlib.R;
 import cn.jx.easyplayerlib.player.EasyMediaPlayer;
 import cn.jx.easyplayerlib.player.IMediaPlayer;
-import cn.jx.easyplayerlib.util.EasyLog;
 
 /**
  *

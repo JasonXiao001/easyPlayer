@@ -1,5 +1,5 @@
 //
-// Created by jasonxiao on 2018/1/23.
+// Created by jasonxiao{github.com/JasonXiao001} on 2018/1/23.
 //
 
 #include "player.h"
@@ -13,17 +13,14 @@ void Player::SetDataSource(const std::string &data_source) {
 }
 
 Player::Player() {
+    av_register_all();
+    avformat_network_init();
 }
 
 Player::~Player() {
 }
 
 void Player::Prepare() {
-    av_register_all();
-    avformat_network_init();
-}
-
-void Player::read() {
     int err, i, ret;
     av_log(NULL, AV_LOG_INFO, "start read thread.\n");
     AVPacket *pkt = (AVPacket *)av_malloc(sizeof(AVPacket));
@@ -73,6 +70,10 @@ void Player::read() {
         av_log(NULL, AV_LOG_FATAL, "Failed to open file '%s' or configure filtergraph\n", filename);
         release();
     }
+}
+
+void Player::read() {
+
 }
 
 void Player::release() {

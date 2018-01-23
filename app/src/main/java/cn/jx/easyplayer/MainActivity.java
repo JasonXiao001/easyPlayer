@@ -1,6 +1,7 @@
 package cn.jx.easyplayer;
 
 
+import android.app.Activity;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;
@@ -8,7 +9,6 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Display;
@@ -25,7 +25,7 @@ import cn.jx.easyplayerlib.player.EasyMediaPlayer;
 import cn.jx.easyplayerlib.view.EasyVideoView;
 
 
-public class MainActivity extends AppCompatActivity{
+public class MainActivity extends Activity{
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
@@ -59,7 +59,6 @@ public class MainActivity extends AppCompatActivity{
     @Override
     protected void onPause() {
         super.onPause();
-        togglePaused();
     }
 
 
@@ -81,10 +80,6 @@ public class MainActivity extends AppCompatActivity{
 
 
     }
-
-
-    public native void togglePaused();
-
 
 
 }

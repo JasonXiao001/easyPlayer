@@ -1,5 +1,5 @@
 //
-// Created by jasonxiao on 2018/1/23.
+// Created by jasonxiao{github.com/JasonXiao001} on 2018/1/23.
 //
 
 #ifndef EASYPLAYER_PLAYER_H

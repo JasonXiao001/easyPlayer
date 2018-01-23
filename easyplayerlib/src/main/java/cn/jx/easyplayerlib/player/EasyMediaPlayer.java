@@ -2,17 +2,11 @@ package cn.jx.easyplayerlib.player;
 
 import android.graphics.SurfaceTexture;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
-import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceHolder;
-import android.widget.RelativeLayout;
 
 import java.io.IOException;
-import java.lang.ref.WeakReference;
-
-import cn.jx.easyplayerlib.util.EasyLog;
 
 /**
  *  Java wrapper of native easyPlayer.
@@ -47,13 +41,11 @@ public class EasyMediaPlayer extends AbstractMediaPlayer {
         public boolean handleMessage(Message msg) {
             switch (msg.what) {
                 case MEDIA_SET_VIDEO_SIZE:
-                    EasyLog.d(TAG, "on media size changed " + msg.arg1 + "*" + msg.arg2);
                     mVideoWidth = msg.arg1;
                     mVideoHeight = msg.arg2;
                     notifyOnVideoSizeChanged(mVideoWidth, mVideoHeight);
                     break;
                 case MEDIA_PREPARED:
-                    EasyLog.d(TAG, "on media prepared ");
                     notifyOnPrepared();
 
             }
@@ -143,8 +135,7 @@ public class EasyMediaPlayer extends AbstractMediaPlayer {
     @Override
     public void setSurface(Surface surface) {
         if (mScreenOnWhilePlaying && surface != null) {
-            EasyLog.w(TAG,
-                    "setScreenOnWhilePlaying(true) is ineffective for Surface");
+
         }
         mSurfaceHolder = null;
         _setVideoSurface(surface);
@@ -237,8 +228,7 @@ public class EasyMediaPlayer extends AbstractMediaPlayer {
     public void setScreenOnWhilePlaying(boolean screenOn) {
         if (mScreenOnWhilePlaying != screenOn) {
             if (screenOn && mSurfaceHolder == null) {
-                EasyLog.w(TAG,
-                        "setScreenOnWhilePlaying(true) is ineffective without a SurfaceHolder");
+
             }
             mScreenOnWhilePlaying = screenOn;
             updateSurfaceScreenOn();
@@ -255,7 +245,6 @@ public class EasyMediaPlayer extends AbstractMediaPlayer {
 
 
     private void postEventFromNative(int what, int arg1, int arg2) {
-        EasyLog.i(TAG, "recv message from native,what " + what);
         Message.obtain(mHander, what, arg1, arg2).sendToTarget();
     }
 
