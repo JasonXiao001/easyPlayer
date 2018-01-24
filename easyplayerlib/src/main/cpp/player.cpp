@@ -21,8 +21,7 @@ Player::~Player() {
 }
 
 void Player::Prepare() {
-    int err, i, ret;
-    int pkt_in_play_range = 0;
+    int err, i;
     int st_index[AVMEDIA_TYPE_NB];
     memset(st_index, -1, sizeof(st_index));
     ic_ = avformat_alloc_context();
@@ -45,21 +44,17 @@ void Player::Prepare() {
     for(i = 0; i < ic_->nb_streams; i++) {
         if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             st_index[AVMEDIA_TYPE_AUDIO] = i;
+            av_log(NULL, AV_LOG_INFO, "start open audio component at id %d.\n",st_index[AVMEDIA_TYPE_AUDIO]);
+            audio_stream = new Stream(i, ic_);
         }
         if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             st_index[AVMEDIA_TYPE_VIDEO] = i;
+            av_log(NULL, AV_LOG_INFO, "start open video component at id %d.\n",st_index[AVMEDIA_TYPE_VIDEO]);
+            video_stream = new Stream(i, ic_);
         }
     }
-    if (st_index[AVMEDIA_TYPE_VIDEO] >= 0) {
-        av_log(NULL, AV_LOG_INFO, "start open video component at id %d.\n",st_index[AVMEDIA_TYPE_VIDEO]);
-        stream_component_open(st_index[AVMEDIA_TYPE_VIDEO]);
-    }
-    if (st_index[AVMEDIA_TYPE_AUDIO] >= 0) {
-        av_log(NULL, AV_LOG_INFO, "start open audio component at id %d.\n",st_index[AVMEDIA_TYPE_AUDIO]);
-        stream_component_open(st_index[AVMEDIA_TYPE_AUDIO]);
-    }
     if (video_stream < 0 && audio_stream < 0) {
-        av_log(NULL, AV_LOG_FATAL, "Failed to open file '%s' or configure filtergraph\n", filename);
+        av_log(NULL, AV_LOG_FATAL, "Failed to open file '%s' or configure filtergraph\n", data_source_.c_str());
         release();
     }
 }

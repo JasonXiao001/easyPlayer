@@ -18,6 +18,8 @@ extern "C"{
 #include "libavcodec/avfft.h"
 };
 
+#include "stream.h"
+
 
 class Player {
 public:
@@ -40,6 +42,8 @@ private:
 private:
     std::string data_source_;
     AVFormatContext *ic_;
+    Stream *audio_stream;
+    Stream *video_stream;
 
 };
 
