@@ -17,15 +17,24 @@ extern "C" {
 class Stream {
 public:
     Stream(int index, const AVFormatContext *ctx);
-    void PutPacket(AVPacket *pkt);
+    void PutPacket(AVPacket &pkt);
 
 private:
-    std::queue<AVPacket> queue_;
+    void decode();
+    void GetPacket(AVPacket &pkt);
+
+private:
+    std::queue<AVPacket> packet_queue_;
+    std::queue<AVFrame> frame_queue_;
     AVCodecContext *avctx;
     std::mutex mtx_;
-    std::condition_variable full_;
+    std::condition_variable packet_full_;
+    std::condition_variable packet_empty_;
+    std::condition_variable frame_full_;
+    std::condition_variable frame_empty_;
     int stream_index_ = -1;
-    const size_t MAX_SIZE = 8;
+    const size_t PKT_MAX_SIZE = 8;
+    const size_t FRAME_MAX_SIZE = 16;
 };
 
 

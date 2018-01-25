@@ -5,27 +5,19 @@
 
 #include "stream.h"
 
-void Stream::PutPacket(AVPacket *pkt) {
-    int ret;
+void Stream::PutPacket(AVPacket &pkt) {
     std::unique_lock<std::mutex> lock(mtx_);
-    while (true) {
-        if (queue_.size() < MAX_SIZE) {
-            AVPacket *packet = (AVPacket *)av_malloc(sizeof(AVPacket));
-            if (packet == NULL) {
-                av_log(NULL, AV_LOG_FATAL, "Could not create new AVPacket.\n");
-            } else {
-                ret = av_copy_packet(packet, pkt);
-                if (ret != 0) {
-                    av_log(NULL, AV_LOG_FATAL, "Could not copy AVPacket.\n");
-                } else {
-                    queue_.push(*packet);
-                    break;
-                }
-            }
-        }else {
-            full_.wait(lock);
-        }
-    }
+    packet_full_.wait(lock, [this] { return packet_queue_.size() < PKT_MAX_SIZE; });
+    packet_queue_.push(pkt);
+    packet_empty_.notify_one();
+}
+
+void Stream::GetPacket(AVPacket &pkt) {
+    std::unique_lock<std::mutex> lock(mtx_);
+    packet_empty_.wait(lock, [this] { return !packet_queue_.empty(); });
+    pkt = packet_queue_.front();
+    packet_queue_.pop();
+    packet_full_.notify_one();
 }
 
 Stream::Stream(int index, const AVFormatContext *ctx) : stream_index_(index) {
@@ -49,3 +41,32 @@ Stream::Stream(int index, const AVFormatContext *ctx) : stream_index_(index) {
         avcodec_free_context(&avctx);
     }
 }
+
+void Stream::decode() {
+    AVPacket pkt;
+    int ret;
+    do {
+        GetPacket(pkt);
+        if (pkt.data == NULL) {
+            av_log(NULL, AV_LOG_FATAL, "reach eof.\n");
+            break;
+        }
+        ret = avcodec_send_packet(avctx, &pkt);
+        if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
+            break;
+        AVFrame *frame = av_frame_alloc();
+        ret = avcodec_receive_frame(avctx, frame);
+        if (ret < 0 && ret != AVERROR_EOF)
+            break;
+        frame->pts = av_frame_get_best_effort_timestamp(frame);
+        frame_queue.put_frame(frame);
+        if (ret < 0) {
+            packet_pending = 0;
+        } else {
+
+        }
+    } while (true);
+
+}
+
+
