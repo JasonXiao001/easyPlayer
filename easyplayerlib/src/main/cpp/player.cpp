@@ -4,6 +4,7 @@
 
 #include <thread>
 #include "player.h"
+#include "log_util.h"
 
 
 
@@ -16,24 +17,24 @@ void Player::SetDataSource(const std::string &data_source) {
 Player::Player() {
     av_register_all();
     avformat_network_init();
+    av_log_set_callback(log);
 }
 
 Player::~Player() {
 }
 
 void Player::Prepare() {
-
     int err, i;
     int st_index[AVMEDIA_TYPE_NB];
     memset(st_index, -1, sizeof(st_index));
     ic_ = avformat_alloc_context();
     if (!ic_) {
-        av_log(NULL, AV_LOG_FATAL, "Could not allocate context.\n");
+        ELOG("Could not allocate context.");
         return;
     }
     err = avformat_open_input(&ic_, data_source_.c_str(), NULL, NULL);
     if (err < 0) {
-        av_log(NULL, AV_LOG_FATAL, "Could not open input file.\n");
+        ELOG("Could not open input file.");
         release();
     }
     err = avformat_find_stream_info(ic_, NULL);
@@ -97,7 +98,6 @@ void Player::release() {
 }
 
 bool Player::GetAudioBuffer(int &nextSize, uint8_t *outputBuffer) {
-    av_log(NULL, AV_LOG_INFO, "here !1111111");
     if (outputBuffer == nullptr) return false;
     auto frame = av_frame_alloc();
     audio_stream->GetFrame(frame);
@@ -122,6 +122,37 @@ Stream *Player::GetAudioStream() const {
 Player::Player(const Player &) {
 
 }
+
+void Player::log(void *ptr, int level, const char *fmt, va_list vl) {
+    int lvl = LOG_LEVEL_V;
+    switch (level) {
+        case AV_LOG_VERBOSE:
+            lvl = LOG_LEVEL_V;
+            break;
+        case AV_LOG_DEBUG:
+            lvl = LOG_LEVEL_D;
+            break;
+        case AV_LOG_INFO:
+            lvl = LOG_LEVEL_I;
+            break;
+        case AV_LOG_WARNING:
+            lvl = LOG_LEVEL_W;
+            break;
+        case AV_LOG_ERROR:
+        case AV_LOG_FATAL:
+        case AV_LOG_PANIC:
+            lvl = LOG_LEVEL_E;
+            break;
+        case AV_LOG_QUIET:
+            lvl = LOG_LEVEL_N;
+            break;
+        default:
+            break;
+    }
+    LogUtil::LogVl(lvl, "ffmpeg", fmt, vl);
+}
+
+
 
 
 

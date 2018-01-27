@@ -37,9 +37,9 @@ private:
     ~Player();
     Player(const Player&);
     Player &operator=(const Player&);
-
     void read();
     void release();
+    static void log(void* ptr, int level, const char* fmt, va_list vl);
 private:
     std::string data_source_;
     AVFormatContext *ic_;

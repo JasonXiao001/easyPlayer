@@ -5,9 +5,11 @@
 #include <android/log.h>
 #include <opensles.h>
 #include "player.h"
+#include "log_util.h"
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
+
 
 
 
@@ -111,29 +113,32 @@ void listener(int what, int arg1, int arg2) {
 
 
 void log(void* ptr, int level, const char* fmt, va_list vl) {
+    int lvl = LOG_LEVEL_V;
     switch (level) {
         case AV_LOG_VERBOSE:
-            __android_log_vprint(ANDROID_LOG_DEBUG,  "native-lib", fmt, vl);
+            lvl = LOG_LEVEL_V;
+            break;
+        case AV_LOG_DEBUG:
+            lvl = LOG_LEVEL_D;
             break;
         case AV_LOG_INFO:
-            __android_log_vprint(ANDROID_LOG_INFO,  "native-lib", fmt, vl);
+            lvl = LOG_LEVEL_I;
             break;
         case AV_LOG_WARNING:
-            __android_log_vprint(ANDROID_LOG_WARN,  "native-lib", fmt, vl);
+            lvl = LOG_LEVEL_W;
             break;
         case AV_LOG_ERROR:
-            __android_log_vprint(ANDROID_LOG_ERROR,  "native-lib", fmt, vl);
-            break;
         case AV_LOG_FATAL:
         case AV_LOG_PANIC:
-            __android_log_vprint(ANDROID_LOG_FATAL,  "native-lib", fmt, vl);
+            lvl = LOG_LEVEL_E;
             break;
         case AV_LOG_QUIET:
-            __android_log_vprint(ANDROID_LOG_SILENT,  "native-lib", fmt, vl);
+            lvl = LOG_LEVEL_N;
             break;
         default:
             break;
     }
+    LogUtil::LogVl(lvl, "ffmpeg", fmt, vl);
 }
 
 
@@ -192,7 +197,7 @@ Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1setDataSource
 //    mPlayer->set_data_source(inputStr);
 //    init(mPlayer);
 //    mPlayer->set_event_listener(listener);
-    av_log_set_callback(log);
+//    av_log_set_callback(log);
     Player::Instance().SetDataSource(env->GetStringUTFChars(path, NULL));
     init();
 }

@@ -64,7 +64,6 @@ void Stream::decode() {
             break;
         frame->pts = av_frame_get_best_effort_timestamp(frame);
         PutFrame(frame);
-        av_log(NULL, AV_LOG_INFO, "decode one\n");
 
     } while (true);
 
@@ -81,7 +80,6 @@ void Stream::GetFrame(AVFrame *frame) {
     std::unique_lock<std::mutex> lock(mtx_);
     frame_empty_.wait(lock, [this] { return !frame_queue_.empty();} );
     auto tmp_frame = frame_queue_.front();
-    av_log(NULL, AV_LOG_INFO, "decode one frame %d\n", tmp_frame->channels);
     av_frame_move_ref(frame, tmp_frame);
     av_frame_unref(tmp_frame);
     frame_queue_.pop();
