@@ -221,7 +221,7 @@ public class EasyMediaPlayer extends AbstractMediaPlayer {
     }
 
 
-    public native void _prepareAsync() throws IllegalStateException;
+    public native void _prepareAsync();
 
 
     @Override

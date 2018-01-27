@@ -3,11 +3,15 @@
 //
 
 #include "include/opensles.h"
+#include <android/log.h>
+#include "player.h"
 
+
+#define LOGD(format, ...)  __android_log_print(ANDROID_LOG_INFO,  "opensl", format, ##__VA_ARGS__)
 
 SLObjectItf engineObject = NULL;
 SLEngineItf engineEngine;
-EasyPlayer *mEasyPlayer;
+//EasyPlayer *mEasyPlayer;
 
 // output mix interfaces
 SLObjectItf outputMixObject;
@@ -189,11 +193,8 @@ void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 {
     assert(bq == bqPlayerBufferQueue);
     assert(NULL == context);
-    if (mEasyPlayer->get_paused()) {
-        mEasyPlayer->wait_paused();
-    }
     // for streaming playback, replace this test by logic to find and fill the next buffer
-    mEasyPlayer->get_aud_buffer(nextSize, outputBuffer);
+    Player::Instance().GetAudioBuffer(nextSize, outputBuffer);
     if ( NULL != outputBuffer && 0 != nextSize) {
         SLresult result;
         // enqueue another buffer
@@ -222,7 +223,7 @@ void releaseResampleBuf(void) {
     resampleBuf = NULL;
 }
 
-void init(EasyPlayer *player) {
-    mEasyPlayer = player;
+void init() {
+//    mEasyPlayer = player;
     outputBuffer = (uint8_t *) malloc(sizeof(uint8_t) * outputBufferSize);
 }

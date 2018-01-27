@@ -30,7 +30,8 @@ public:
     }
     void SetDataSource(const std::string &data_source);
     void Prepare();
-
+    bool GetAudioBuffer(int &nextSize, uint8_t *outputBuffer);
+    Stream *GetAudioStream() const;
 private:
     Player();
     ~Player();
@@ -44,6 +45,7 @@ private:
     AVFormatContext *ic_;
     Stream *audio_stream;
     Stream *video_stream;
+    struct SwrContext *swr_ctx_;
 
 };
 

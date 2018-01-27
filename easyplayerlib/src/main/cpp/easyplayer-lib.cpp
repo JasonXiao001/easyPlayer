@@ -93,9 +93,10 @@ void showPic() {
 }
 
 void playAudio() {
-    mPlayer->wait_state(PlayerState::READY);
+//    mPlayer->wait_state(PlayerState::READY);
     createAudioEngine();
-    createBufferQueueAudioPlayer(mPlayer->auddec.get_sample_rate(), mPlayer->auddec.get_channels());
+//    createBufferQueueAudioPlayer(mPlayer->auddec.get_sample_rate(), mPlayer->auddec.get_channels());
+    createBufferQueueAudioPlayer(Player::Instance().GetAudioStream()->GetAVCtx()->sample_rate, Player::Instance().GetAudioStream()->GetAVCtx()->channels);
     audioStart();
 }
 
@@ -147,7 +148,7 @@ Java_cn_jx_easyplayerlib_EasyPlayer_play
     easyPlayer.init(inputStr);
 
 //    player.init(inputStr);
-    init(&easyPlayer);
+    init();
     nativeWindow = ANativeWindow_fromSurface(env, surface);
     if (0 == nativeWindow){
         LOGD("Couldn't get native window from surface.\n");
@@ -191,7 +192,9 @@ Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1setDataSource
 //    mPlayer->set_data_source(inputStr);
 //    init(mPlayer);
 //    mPlayer->set_event_listener(listener);
+    av_log_set_callback(log);
     Player::Instance().SetDataSource(env->GetStringUTFChars(path, NULL));
+    init();
 }
 
 
@@ -221,11 +224,11 @@ extern "C"
 void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1start
         (JNIEnv *env, jobject obj) {
-    mPlayer->play();
-    std::thread videoThread(showPic);
+//    mPlayer->play();
+//    std::thread videoThread(showPic);
     std::thread audioThread(playAudio);
     audioThread.detach();
-    videoThread.detach();
+//    videoThread.detach();
 }
 
 

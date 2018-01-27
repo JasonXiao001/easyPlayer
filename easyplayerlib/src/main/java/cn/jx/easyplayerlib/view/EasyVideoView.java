@@ -221,13 +221,13 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
         if (mUri == null || mSurfaceHolder == null) {
             return;
         }
-        EasyLog.i(TAG, "video view is ready,creating player");
+//        EasyLog.i(TAG, "video view is ready,creating player");
         mMediaPlayer = new EasyMediaPlayer();
         mMediaPlayer.setOnVideoSizeChangedListener(mSizeChangedListener);
         mMediaPlayer.setOnPreparedListener(mPreparedListener);
         try {
             mMediaPlayer.setDataSource(mUri);
-            mMediaPlayer.setSurface(mSurfaceHolder.getSurface());
+//            mMediaPlayer.setSurface(mSurfaceHolder.getSurface());
             new Thread(new Runnable() {
                 @Override
                 public void run() {

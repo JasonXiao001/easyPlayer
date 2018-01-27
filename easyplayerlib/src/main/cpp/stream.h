@@ -18,15 +18,19 @@ class Stream {
 public:
     Stream(int index, const AVFormatContext *ctx);
     void PutPacket(AVPacket &pkt);
+    void GetFrame(AVFrame *frame);
+    AVCodecContext *GetAVCtx() const;
+    int GetIndex() const;
 
 private:
     void decode();
     void GetPacket(AVPacket &pkt);
+    void PutFrame(AVFrame *frame);
 
 private:
     std::queue<AVPacket> packet_queue_;
-    std::queue<AVFrame> frame_queue_;
-    AVCodecContext *avctx;
+    std::queue<AVFrame*> frame_queue_;
+    AVCodecContext *avctx_;
     std::mutex mtx_;
     std::condition_variable packet_full_;
     std::condition_variable packet_empty_;
