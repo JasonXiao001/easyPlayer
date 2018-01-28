@@ -31,6 +31,7 @@ public:
     }
     void SetDataSource(const std::string &data_source);
     void Prepare();
+    void PlayAudio();
     void SetupJNI(JNIEnv *env);
     bool GetAudioBuffer(int &nextSize, uint8_t *outputBuffer);
     Stream *GetAudioStream() const;

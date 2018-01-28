@@ -61,7 +61,7 @@ void Player::Prepare() {
                 return;
             }
             audio_player.CreateEngine(env_);
-            audio_player.CreateBufferQueuePlayer(env_, audio_stream->GetAVCtx()->sample_rate, audio_stream->GetAVCtx()->channels, audio_stream->GetAVCtx()->bits_per_raw_sample);
+            audio_player.CreateBufferQueuePlayer(env_, audio_stream->GetAVCtx()->channels, audio_stream->GetAVCtx()->sample_rate, audio_stream->GetAVCtx()->bits_per_raw_sample);
         }
 //        if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
 //            st_index[AVMEDIA_TYPE_VIDEO] = i;
@@ -120,9 +120,7 @@ Stream *Player::GetAudioStream() const {
     return audio_stream;
 }
 
-Player::Player(const Player &) {
 
-}
 
 void Player::log(void *ptr, int level, const char *fmt, va_list vl) {
     int lvl = LOG_LEVEL_V;
@@ -173,6 +171,12 @@ void Player::GetAudioData(int &nextSize, uint8_t *outputBuffer) {
 void Player::SetupJNI(JNIEnv *env) {
     env_ = env;
 }
+
+void Player::PlayAudio() {
+    audio_player.Play();
+}
+
+
 
 
 

@@ -97,10 +97,11 @@ void showPic() {
 
 void playAudio() {
 //    mPlayer->wait_state(PlayerState::READY);
-    createAudioEngine();
+//    createAudioEngine();
 //    createBufferQueueAudioPlayer(mPlayer->auddec.get_sample_rate(), mPlayer->auddec.get_channels());
-    createBufferQueueAudioPlayer(Player::Instance().GetAudioStream()->GetAVCtx()->sample_rate, Player::Instance().GetAudioStream()->GetAVCtx()->channels);
-    audioStart();
+//    createBufferQueueAudioPlayer(Player::Instance().GetAudioStream()->GetAVCtx()->sample_rate, Player::Instance().GetAudioStream()->GetAVCtx()->channels);
+//    audioStart();
+    Player::Instance().PlayAudio();
 }
 
 void listener(int what, int arg1, int arg2) {

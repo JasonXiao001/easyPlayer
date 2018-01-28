@@ -72,8 +72,7 @@ bool AudioPlayer::CheckError(JNIEnv *env, SLresult result) {
     if (SL_RESULT_SUCCESS != result)
     {
         auto ret_str = ResultToString(result).c_str();
-        ELOG("audio player exception, msg : %s", ret_str);
-        ThrowException(env, "java/lang/IOException", ret_str);
+//        ThrowException(env, "java/lang/IOException", ret_str);
         return true;
     }
     return false;
@@ -138,12 +137,12 @@ void AudioPlayer::bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *conte
         // enqueue another buffer
         auto result = (*bq)->Enqueue(bq, player->buffer_, next_size);
         // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT
-        ELOG("enqueue buffer error, %s", ResultToString(result));
     }
 }
 
 void AudioPlayer::Play() {
     auto result = (*audio_player_)->SetPlayState(audio_player_, SL_PLAYSTATE_PLAYING);
+    bqPlayerCallback(buffer_queue_, this);
 }
 
 void AudioPlayer::Pause() {
