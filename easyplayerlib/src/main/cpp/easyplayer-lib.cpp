@@ -34,6 +34,7 @@ jmethodID gOnResolutionChange = NULL;
 jmethodID gPostEventFromNative = NULL;
 EasyPlayer easyPlayer;
 EasyPlayer *mPlayer;
+size_t t;
 
 
 jint JNI_OnLoad (JavaVM *vm, void *reserved) {
@@ -222,7 +223,9 @@ void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1prepareAsync
         (JNIEnv *env, jobject obj) {
 //    mPlayer->prepare();
+    Player::Instance().SetupJNI(env);
     Player::Instance().Prepare();
+
 }
 
 extern "C"

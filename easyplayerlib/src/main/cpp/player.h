@@ -19,9 +19,10 @@ extern "C"{
 };
 
 #include "stream.h"
+#include "audio_player.h"
 
 
-class Player {
+class Player : AudioDataSource{
 public:
     static Player& Instance()
     {
@@ -30,8 +31,10 @@ public:
     }
     void SetDataSource(const std::string &data_source);
     void Prepare();
+    void SetupJNI(JNIEnv *env);
     bool GetAudioBuffer(int &nextSize, uint8_t *outputBuffer);
     Stream *GetAudioStream() const;
+
 private:
     Player();
     ~Player();
@@ -39,13 +42,16 @@ private:
     Player &operator=(const Player&);
     void read();
     void release();
+    virtual void GetAudioData(int &nextSize, uint8_t *outputBuffer) override;
     static void log(void* ptr, int level, const char* fmt, va_list vl);
 private:
     std::string data_source_;
     AVFormatContext *ic_;
     Stream *audio_stream;
     Stream *video_stream;
+    AudioPlayer audio_player;
     struct SwrContext *swr_ctx_;
+    JNIEnv *env_;
 
 };
 

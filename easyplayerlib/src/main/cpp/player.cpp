@@ -14,7 +14,7 @@ void Player::SetDataSource(const std::string &data_source) {
 
 }
 
-Player::Player() {
+Player::Player() : audio_player(this) {
     av_register_all();
     avformat_network_init();
     av_log_set_callback(log);
@@ -48,7 +48,6 @@ void Player::Prepare() {
         if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             st_index[AVMEDIA_TYPE_AUDIO] = i;
             av_log(NULL, AV_LOG_INFO, "start open audio component at id %d.\n",st_index[AVMEDIA_TYPE_AUDIO]);
-
             audio_stream = new Stream(i, ic_);
             swr_ctx_ = swr_alloc();
             swr_ctx_ = swr_alloc_set_opts(NULL,
@@ -61,6 +60,8 @@ void Player::Prepare() {
                 swr_free(&swr_ctx_);
                 return;
             }
+            audio_player.CreateEngine(env_);
+            audio_player.CreateBufferQueuePlayer(env_, audio_stream->GetAVCtx()->sample_rate, audio_stream->GetAVCtx()->channels, audio_stream->GetAVCtx()->bits_per_raw_sample);
         }
 //        if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
 //            st_index[AVMEDIA_TYPE_VIDEO] = i;
@@ -151,6 +152,31 @@ void Player::log(void *ptr, int level, const char *fmt, va_list vl) {
     }
     LogUtil::LogVl(lvl, "ffmpeg", fmt, vl);
 }
+
+void Player::GetAudioData(int &nextSize, uint8_t *outputBuffer) {
+    if (outputBuffer == nullptr) return;
+    auto frame = av_frame_alloc();
+    audio_stream->GetFrame(frame);
+    av_log(NULL, AV_LOG_INFO, "GetAudioBuffer %d", frame->channels);
+    auto ctx = audio_stream->GetAVCtx();
+    if (ctx->sample_fmt == AV_SAMPLE_FMT_S16P) {
+        nextSize = av_samples_get_buffer_size(frame->linesize, ctx->channels, ctx->frame_size, ctx->sample_fmt, 1);
+    }else {
+        av_samples_get_buffer_size(&nextSize, ctx->channels, ctx->frame_size, ctx->sample_fmt, 1);
+    }
+    swr_convert(swr_ctx_, &outputBuffer, frame->nb_samples,
+                          (uint8_t const **) (frame->extended_data),
+                          frame->nb_samples);
+    av_frame_unref(frame);
+}
+
+void Player::SetupJNI(JNIEnv *env) {
+    env_ = env;
+}
+
+
+
+
 
 
 

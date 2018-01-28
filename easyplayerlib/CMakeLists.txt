@@ -33,6 +33,7 @@ add_library(player-lib SHARED
             ${CMAKE_SOURCE_DIR}/src/main/cpp/easyPlayer.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/player.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/stream.cpp
+            ${CMAKE_SOURCE_DIR}/src/main/cpp/audio_player.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/log_util.cpp)
 
 # Include libraries needed for VideoPlayer lib
