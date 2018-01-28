@@ -49,25 +49,27 @@ void Player::Prepare() {
             st_index[AVMEDIA_TYPE_AUDIO] = i;
             av_log(NULL, AV_LOG_INFO, "start open audio component at id %d.\n",st_index[AVMEDIA_TYPE_AUDIO]);
             audio_stream = new Stream(i, ic_);
-            swr_ctx_ = swr_alloc();
-            swr_ctx_ = swr_alloc_set_opts(NULL,
+            audio_swr_ctx_ = swr_alloc();
+            audio_swr_ctx_ = swr_alloc_set_opts(NULL,
                                           audio_stream->GetAVCtx()->channel_layout, AV_SAMPLE_FMT_S16, audio_stream->GetAVCtx()->sample_rate,
                                           audio_stream->GetAVCtx()->channel_layout, audio_stream->GetAVCtx()->sample_fmt, audio_stream->GetAVCtx()->sample_rate,
                                           0, NULL);
-            if (!swr_ctx_ || swr_init(swr_ctx_) < 0) {
+            if (!audio_swr_ctx_ || swr_init(audio_swr_ctx_) < 0) {
                 av_log(NULL, AV_LOG_ERROR,
                        "Cannot create sample rate converter for conversion channels!\n");
-                swr_free(&swr_ctx_);
+                swr_free(&audio_swr_ctx_);
                 return;
             }
             audio_player.CreateEngine(env_);
             audio_player.CreateBufferQueuePlayer(env_, audio_stream->GetAVCtx()->channels, audio_stream->GetAVCtx()->sample_rate, audio_stream->GetAVCtx()->bits_per_raw_sample);
         }
-//        if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-//            st_index[AVMEDIA_TYPE_VIDEO] = i;
-//            av_log(NULL, AV_LOG_INFO, "start open video component at id %d.\n",st_index[AVMEDIA_TYPE_VIDEO]);
-//            video_stream = new Stream(i, ic_);
-//        }
+        if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            st_index[AVMEDIA_TYPE_VIDEO] = i;
+            video_stream = new Stream(i, ic_);
+            auto avctx = video_stream->GetAVCtx();
+            video_swr_ctx_ = sws_getContext(avctx->width, avctx->height, avctx->pix_fmt,
+                                             avctx->width, avctx->height, AV_PIX_FMT_RGBA, SWS_BICUBIC, NULL, NULL, NULL);
+        }
     }
     if (video_stream < 0 && audio_stream < 0) {
         av_log(NULL, AV_LOG_FATAL, "Failed to open file '%s' or configure filtergraph\n", data_source_.c_str());
@@ -90,6 +92,8 @@ void Player::read() {
 
         if (pkt->stream_index == audio_stream->GetIndex()) {
             audio_stream->PutPacket(*pkt);
+        }else if (pkt->stream_index == video_stream->GetIndex()) {
+            video_stream->PutPacket(*pkt);
         }
     }
 }
@@ -109,7 +113,7 @@ bool Player::GetAudioBuffer(int &nextSize, uint8_t *outputBuffer) {
     }else {
         av_samples_get_buffer_size(&nextSize, ctx->channels, ctx->frame_size, ctx->sample_fmt, 1);
     }
-    int ret = swr_convert(swr_ctx_, &outputBuffer, frame->nb_samples,
+    int ret = swr_convert(audio_swr_ctx_, &outputBuffer, frame->nb_samples,
                           (uint8_t const **) (frame->extended_data),
                           frame->nb_samples);
     av_frame_unref(frame);
@@ -162,7 +166,7 @@ void Player::GetAudioData(int &nextSize, uint8_t *outputBuffer) {
     }else {
         av_samples_get_buffer_size(&nextSize, ctx->channels, ctx->frame_size, ctx->sample_fmt, 1);
     }
-    swr_convert(swr_ctx_, &outputBuffer, frame->nb_samples,
+    swr_convert(audio_swr_ctx_, &outputBuffer, frame->nb_samples,
                           (uint8_t const **) (frame->extended_data),
                           frame->nb_samples);
     av_frame_unref(frame);
@@ -175,6 +179,9 @@ void Player::SetupJNI(JNIEnv *env) {
 void Player::PlayAudio() {
     audio_player.Play();
 }
+
+
+
 
 
 

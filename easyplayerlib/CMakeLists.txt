@@ -29,11 +29,11 @@ set_target_properties(swscale-4_lib PROPERTIES IMPORTED_LOCATION
 # build application's shared lib
 add_library(player-lib SHARED
             ${CMAKE_SOURCE_DIR}/src/main/cpp/easyplayer-lib.cpp
-            ${CMAKE_SOURCE_DIR}/src/main/cpp/opensles.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/easyPlayer.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/player.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/stream.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/audio_player.cpp
+            ${CMAKE_SOURCE_DIR}/src/main/cpp/video_player.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/log_util.cpp)
 
 # Include libraries needed for VideoPlayer lib

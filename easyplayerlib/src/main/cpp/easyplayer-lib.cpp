@@ -3,9 +3,9 @@
 #include <thread>
 #include <mutex>
 #include <android/log.h>
-#include <opensles.h>
 #include "player.h"
 #include "log_util.h"
+#include "easyPlayer.h"
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
@@ -155,7 +155,6 @@ Java_cn_jx_easyplayerlib_EasyPlayer_play
     easyPlayer.init(inputStr);
 
 //    player.init(inputStr);
-    init();
     nativeWindow = ANativeWindow_fromSurface(env, surface);
     if (0 == nativeWindow){
         LOGD("Couldn't get native window from surface.\n");
@@ -201,7 +200,6 @@ Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1setDataSource
 //    mPlayer->set_event_listener(listener);
 //    av_log_set_callback(log);
     Player::Instance().SetDataSource(env->GetStringUTFChars(path, NULL));
-    init();
 }
 
 
@@ -209,11 +207,12 @@ extern "C"
 void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1setVideoSurface
         (JNIEnv *env, jobject obj, jobject surface) {
-    nativeWindow = ANativeWindow_fromSurface(env, surface);
-    if (0 == nativeWindow){
-        LOGD("Couldn't get native window from surface.\n");
-        return;
-    }
+    Player::Instance().
+//    nativeWindow = ANativeWindow_fromSurface(env, surface);
+//    if (0 == nativeWindow){
+//        LOGD("Couldn't get native window from surface.\n");
+//        return;
+//    }
 
 }
 

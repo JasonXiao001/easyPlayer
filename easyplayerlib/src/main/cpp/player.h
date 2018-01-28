@@ -20,6 +20,7 @@ extern "C"{
 
 #include "stream.h"
 #include "audio_player.h"
+#include "video_player.h"
 
 
 class Player : AudioDataSource{
@@ -51,7 +52,9 @@ private:
     Stream *audio_stream;
     Stream *video_stream;
     AudioPlayer audio_player;
-    struct SwrContext *swr_ctx_;
+    VideoPlayer *video_player;
+    struct SwrContext *audio_swr_ctx_;
+    struct SwsContext *video_swr_ctx_;
     JNIEnv *env_;
 
 };
