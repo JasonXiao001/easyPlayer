@@ -101,7 +101,7 @@ void playAudio() {
 //    createBufferQueueAudioPlayer(mPlayer->auddec.get_sample_rate(), mPlayer->auddec.get_channels());
 //    createBufferQueueAudioPlayer(Player::Instance().GetAudioStream()->GetAVCtx()->sample_rate, Player::Instance().GetAudioStream()->GetAVCtx()->channels);
 //    audioStart();
-    Player::Instance().PlayAudio();
+    Player::Instance().Start();
 }
 
 void listener(int what, int arg1, int arg2) {

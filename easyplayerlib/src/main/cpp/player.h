@@ -32,7 +32,8 @@ public:
     }
     void SetDataSource(const std::string &data_source);
     void Prepare();
-    void PlayAudio();
+    void Start();
+
     void SetupJNI(JNIEnv *env);
     bool GetAudioBuffer(int &nextSize, uint8_t *outputBuffer);
     Stream *GetAudioStream() const;
@@ -42,6 +43,8 @@ private:
     ~Player();
     Player(const Player&);
     Player &operator=(const Player&);
+    void PlayAudio();
+    void PlayVideo();
     void read();
     void release();
     virtual void GetAudioData(int &nextSize, uint8_t *outputBuffer) override;
@@ -56,6 +59,8 @@ private:
     struct SwrContext *audio_swr_ctx_;
     struct SwsContext *video_swr_ctx_;
     JNIEnv *env_;
+
+    bool stop_ = false;
 
 };
 

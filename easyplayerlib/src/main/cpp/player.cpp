@@ -99,7 +99,7 @@ void Player::read() {
 }
 
 void Player::release() {
-
+    stop_ = true;
 }
 
 bool Player::GetAudioBuffer(int &nextSize, uint8_t *outputBuffer) {
@@ -179,6 +179,32 @@ void Player::SetupJNI(JNIEnv *env) {
 void Player::PlayAudio() {
     audio_player.Play();
 }
+
+void Player::Start() {
+    std::thread audio_thread(&Player::PlayAudio, this);
+    audio_thread.detach();
+    std::thread video_thread(&Player::PlayVideo, this);
+    video_thread.detach();
+}
+
+void Player::PlayVideo() {
+    AVFrame *frameRGBA = av_frame_alloc();
+    int bytes_num = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_stream->GetAVCtx()->width, video_stream->GetAVCtx()->height, 1);
+    uint8_t *out_buffer = (uint8_t *)av_malloc(bytes_num*sizeof(uint8_t));
+    av_image_fill_arrays(frameRGBA->data, frameRGBA->linesize, out_buffer, AV_PIX_FMT_RGBA, video_stream->GetAVCtx()->width, video_stream->GetAVCtx()->height, 1);
+    while (!stop_) {
+        video_stream->GetFrame(frameRGBA);
+        sws_scale(video_swr_ctx_, (const uint8_t* const*)frameRGBA->data, frameRGBA->linesize, 0, video_stream->GetAVCtx()->height,
+                  frameRGBA->data, frameRGBA->linesize);
+        video_player->Show(out_buffer, frameRGBA->linesize[0]);
+    }
+    av_frame_unref(frameRGBA);
+    av_frame_free(&frameRGBA);
+}
+
+
+
+
 
 
 
