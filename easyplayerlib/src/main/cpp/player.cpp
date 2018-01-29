@@ -69,6 +69,7 @@ void Player::Prepare() {
             auto avctx = video_stream->GetAVCtx();
             video_swr_ctx_ = sws_getContext(avctx->width, avctx->height, avctx->pix_fmt,
                                              avctx->width, avctx->height, AV_PIX_FMT_RGBA, SWS_BICUBIC, NULL, NULL, NULL);
+            video_player->Setup(avctx->width, avctx->height);
         }
     }
     if (video_stream < 0 && audio_stream < 0) {
@@ -181,10 +182,14 @@ void Player::PlayAudio() {
 }
 
 void Player::Start() {
-    std::thread audio_thread(&Player::PlayAudio, this);
-    audio_thread.detach();
-    std::thread video_thread(&Player::PlayVideo, this);
-    video_thread.detach();
+    if (audio_stream != nullptr) {
+        std::thread audio_thread(&Player::PlayAudio, this);
+        audio_thread.detach();
+    }
+    if (video_stream != nullptr && video_player != nullptr) {
+        std::thread video_thread(&Player::PlayVideo, this);
+        video_thread.detach();
+    }
 }
 
 void Player::PlayVideo() {
@@ -201,6 +206,15 @@ void Player::PlayVideo() {
     av_frame_unref(frameRGBA);
     av_frame_free(&frameRGBA);
 }
+
+void Player::CreateVideoPlayer(JNIEnv *env, jobject surface) {
+    if (video_player != nullptr) {
+        delete video_player;
+    }
+    video_player = new VideoPlayer(env, surface);
+}
+
+
 
 
 

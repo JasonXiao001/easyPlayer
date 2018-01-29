@@ -207,7 +207,7 @@ extern "C"
 void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1setVideoSurface
         (JNIEnv *env, jobject obj, jobject surface) {
-    Player::Instance().
+    Player::Instance().CreateVideoPlayer(env, surface);
 //    nativeWindow = ANativeWindow_fromSurface(env, surface);
 //    if (0 == nativeWindow){
 //        LOGD("Couldn't get native window from surface.\n");

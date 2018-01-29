@@ -227,7 +227,7 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
         mMediaPlayer.setOnPreparedListener(mPreparedListener);
         try {
             mMediaPlayer.setDataSource(mUri);
-//            mMediaPlayer.setSurface(mSurfaceHolder.getSurface());
+            mMediaPlayer.setSurface(mSurfaceHolder.getSurface());
             new Thread(new Runnable() {
                 @Override
                 public void run() {

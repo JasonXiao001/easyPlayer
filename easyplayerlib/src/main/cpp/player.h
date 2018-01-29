@@ -31,6 +31,7 @@ public:
         return instance;
     }
     void SetDataSource(const std::string &data_source);
+    void CreateVideoPlayer(JNIEnv *env, jobject surface);
     void Prepare();
     void Start();
 

@@ -13,7 +13,7 @@
 class VideoPlayer {
 public:
     VideoPlayer(JNIEnv *env, jobject surface);
-    void Setup(int32_t width, int32_t height, int32_t format);
+    void Setup(int32_t width, int32_t height, int32_t format = WINDOW_FORMAT_RGBA_8888);
     void Show(uint8_t *out_buffer, int line_size);
 
 private:
