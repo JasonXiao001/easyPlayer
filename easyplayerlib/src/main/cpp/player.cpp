@@ -9,15 +9,18 @@
 
 
 
-void Player::SetDataSource(const std::string &data_source) {
+void Player::SetDataSource(JNIEnv *env, const std::string &data_source) {
+    ILOG("set data source %s", data_source.c_str());
     data_source_ = data_source;
+    env_ = env;
 
 }
 
 Player::Player() : audio_player(this) {
     av_register_all();
     avformat_network_init();
-    av_log_set_callback(log);
+//    av_log_set_callback(log);
+//    av_log_set_level(AV_LOG_INFO);
 }
 
 Player::~Player() {
@@ -47,7 +50,7 @@ void Player::Prepare() {
     for(i = 0; i < ic_->nb_streams; i++) {
         if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             st_index[AVMEDIA_TYPE_AUDIO] = i;
-            av_log(NULL, AV_LOG_INFO, "start open audio component at id %d.\n",st_index[AVMEDIA_TYPE_AUDIO]);
+            ILOG("start open audio component at id %d.\n", st_index[AVMEDIA_TYPE_AUDIO]);
             audio_stream = new Stream(i, ic_);
             audio_swr_ctx_ = swr_alloc();
             audio_swr_ctx_ = swr_alloc_set_opts(NULL,
@@ -55,8 +58,7 @@ void Player::Prepare() {
                                           audio_stream->GetAVCtx()->channel_layout, audio_stream->GetAVCtx()->sample_fmt, audio_stream->GetAVCtx()->sample_rate,
                                           0, NULL);
             if (!audio_swr_ctx_ || swr_init(audio_swr_ctx_) < 0) {
-                av_log(NULL, AV_LOG_ERROR,
-                       "Cannot create sample rate converter for conversion channels!\n");
+                ELOG("Cannot create sample rate converter for conversion channels!\n");
                 swr_free(&audio_swr_ctx_);
                 return;
             }
@@ -72,7 +74,7 @@ void Player::Prepare() {
             video_player->Setup(avctx->width, avctx->height);
         }
     }
-    if (video_stream < 0 && audio_stream < 0) {
+    if (video_stream == nullptr && audio_stream == nullptr) {
         av_log(NULL, AV_LOG_FATAL, "Failed to open file '%s' or configure filtergraph\n", data_source_.c_str());
         release();
     }
@@ -84,16 +86,19 @@ void Player::read() {
     AVPacket *pkt = (AVPacket *)av_malloc(sizeof(AVPacket));
     int ret = 0;
     while(true) {
-
+        DLOG("read one");
         ret = av_read_frame(ic_, pkt);
         if (ret < 0) {
+            DLOG("read one %d", ret);
             break;
         }
         /* check if packet is in play range specified by user, then queue, otherwise discard */
 
         if (pkt->stream_index == audio_stream->GetIndex()) {
+            DLOG("read audio");
             audio_stream->PutPacket(*pkt);
         }else if (pkt->stream_index == video_stream->GetIndex()) {
+            DLOG("read video");
             video_stream->PutPacket(*pkt);
         }
     }
@@ -182,6 +187,7 @@ void Player::PlayAudio() {
 }
 
 void Player::Start() {
+    DLOG("start play");
     if (audio_stream != nullptr) {
         std::thread audio_thread(&Player::PlayAudio, this);
         audio_thread.detach();
@@ -193,12 +199,14 @@ void Player::Start() {
 }
 
 void Player::PlayVideo() {
+    DLOG("play video");
     AVFrame *frameRGBA = av_frame_alloc();
     int bytes_num = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_stream->GetAVCtx()->width, video_stream->GetAVCtx()->height, 1);
     uint8_t *out_buffer = (uint8_t *)av_malloc(bytes_num*sizeof(uint8_t));
     av_image_fill_arrays(frameRGBA->data, frameRGBA->linesize, out_buffer, AV_PIX_FMT_RGBA, video_stream->GetAVCtx()->width, video_stream->GetAVCtx()->height, 1);
     while (!stop_) {
         video_stream->GetFrame(frameRGBA);
+        DLOG("play while");
         sws_scale(video_swr_ctx_, (const uint8_t* const*)frameRGBA->data, frameRGBA->linesize, 0, video_stream->GetAVCtx()->height,
                   frameRGBA->data, frameRGBA->linesize);
         video_player->Show(out_buffer, frameRGBA->linesize[0]);

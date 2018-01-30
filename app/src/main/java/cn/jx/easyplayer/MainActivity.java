@@ -41,7 +41,7 @@ public class MainActivity extends Activity{
         setContentView(R.layout.activity_main);
         final EasyVideoView videoView = (EasyVideoView) findViewById(R.id.easy_video_view);
         String folderurl = Environment.getExternalStorageDirectory().getPath();
-        String inputurl = folderurl+"/salina.mp3";
+        String inputurl = folderurl+"/StarCraft.mp4";
         videoView.setVideoPath(inputurl);
         Button pause = (Button) findViewById(R.id.pause);
         pause.setOnClickListener(new View.OnClickListener() {

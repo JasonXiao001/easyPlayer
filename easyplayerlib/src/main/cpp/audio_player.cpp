@@ -95,6 +95,7 @@ void AudioPlayer::CreateEngine(JNIEnv *env) {
 }
 
 void AudioPlayer::CreateBufferQueuePlayer(JNIEnv *env, u_int32_t channel, u_int32_t sample_rate, u_int16_t sample_bits) {
+    ILOG("create buffer queue player with %u channel, %u sample rate, %u", channel, sample_rate, (unsigned)sample_bits);
     SLresult result;
     // configure audio source
     SLDataLocator_AndroidSimpleBufferQueue loc_bufq = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 2};
@@ -117,6 +118,7 @@ void AudioPlayer::CreateBufferQueuePlayer(JNIEnv *env, u_int32_t channel, u_int3
     CheckError(env, result);
     // get the buffer queue interface
     buffer_size_ = channel * sample_rate * sample_bits;
+    buffer_size_ = 8192;
     buffer_ = new unsigned char[buffer_size_];
     ILOG("create buffer with size %u", buffer_size_);
     result = (*audio_player_obj_)->GetInterface(audio_player_obj_, SL_IID_BUFFERQUEUE, &buffer_queue_);
@@ -130,9 +132,11 @@ void AudioPlayer::Release() {
 }
 
 void AudioPlayer::bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
+
     int next_size = 0;
     AudioPlayer *player = (AudioPlayer *)context;
     player->src_->GetAudioData(next_size, player->buffer_);
+    ILOG("player callback %d", next_size);
     if (0 != next_size) {
         // enqueue another buffer
         auto result = (*bq)->Enqueue(bq, player->buffer_, next_size);

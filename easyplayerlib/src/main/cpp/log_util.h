@@ -17,16 +17,16 @@
 
 
 #define VLOG(fmt,...) \
-    LogUtil::Log(LOG_LEVEL_V, __FILE__, __LINE__, fmt, __VA_ARGS__);
+    LogUtil::Log(LOG_LEVEL_V, __FILE__, __LINE__, fmt, ##__VA_ARGS__);
 
 #define DLOG(fmt,...) \
-    LogUtil::Log(LOG_LEVEL_D, __FILE__, __LINE__, fmt, __VA_ARGS__);
+    LogUtil::Log(LOG_LEVEL_D, __FILE__, __LINE__, fmt, ##__VA_ARGS__);
 
 #define ILOG(fmt,...) \
-    LogUtil::Log(LOG_LEVEL_I, __FILE__, __LINE__, fmt, __VA_ARGS__);
+    LogUtil::Log(LOG_LEVEL_I, __FILE__, __LINE__, fmt, ##__VA_ARGS__);
 
 #define WLOG(fmt,...) \
-    LogUtil::Log(LOG_LEVEL_W, __FILE__, __LINE__, fmt, __VA_ARGS__);
+    LogUtil::Log(LOG_LEVEL_W, __FILE__, __LINE__, fmt, ##__VA_ARGS__);
 
 #define ELOG(fmt,...) \
     LogUtil::Log(LOG_LEVEL_E, __FILE__, __LINE__, fmt, ##__VA_ARGS__)

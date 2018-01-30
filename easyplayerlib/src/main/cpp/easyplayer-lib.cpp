@@ -95,7 +95,7 @@ void showPic() {
 
 }
 
-void playAudio() {
+void play() {
 //    mPlayer->wait_state(PlayerState::READY);
 //    createAudioEngine();
 //    createBufferQueueAudioPlayer(mPlayer->auddec.get_sample_rate(), mPlayer->auddec.get_channels());
@@ -170,14 +170,14 @@ Java_cn_jx_easyplayerlib_EasyPlayer_play
         }
     }
     std::thread videoThread(showPic);
-    std::thread audioThread(playAudio);
+//    std::thread audioThread(playAudio);
     easyPlayer.wait_state(PlayerState::READY);
     if (easyPlayer.has_video()) {
         env->CallVoidMethod(obj, gOnResolutionChange, easyPlayer.viddec.get_width(), easyPlayer.viddec.get_height());
     }
 //    std::thread decodeThread(decode);
 
-    audioThread.join();
+//    audioThread.join();
     videoThread.join();
 //    decodeThread.join();
 
@@ -190,16 +190,7 @@ extern "C"
 void
 Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1setDataSource
         (JNIEnv *env, jobject obj, jstring path) {
-//    mPlayer = new EasyPlayer();
-//    char inputStr[500] = {0};
-//    sprintf(inputStr, "%s", env->GetStringUTFChars(path, NULL));
-//
-//    av_log_set_callback(log);
-//    mPlayer->set_data_source(inputStr);
-//    init(mPlayer);
-//    mPlayer->set_event_listener(listener);
-//    av_log_set_callback(log);
-    Player::Instance().SetDataSource(env->GetStringUTFChars(path, NULL));
+    Player::Instance().SetDataSource(env, env->GetStringUTFChars(path, NULL));
 }
 
 
@@ -234,9 +225,10 @@ Java_cn_jx_easyplayerlib_player_EasyMediaPlayer__1start
         (JNIEnv *env, jobject obj) {
 //    mPlayer->play();
 //    std::thread videoThread(showPic);
-    std::thread audioThread(playAudio);
-    audioThread.detach();
+//    std::thread audioThread(play);
+//    audioThread.detach();
 //    videoThread.detach();
+    Player::Instance().Start();
 }
 
 

@@ -19,7 +19,7 @@ VideoPlayer::~VideoPlayer() {
     }
 }
 
-void VideoPlayer::Setup(int32_t width, int32_t height, int32_t format = WINDOW_FORMAT_RGBA_8888) {
+void VideoPlayer::Setup(int32_t width, int32_t height, int32_t format) {
     if (nativeWindow != nullptr) {
         ANativeWindow_setBuffersGeometry(nativeWindow, width, height, format);
         height_ = height;

@@ -5,6 +5,7 @@
 
 #include <thread>
 #include "stream.h"
+#include "log_util.h"
 
 void Stream::PutPacket(AVPacket &pkt) {
     std::unique_lock<std::mutex> lock(mtx_);
@@ -17,7 +18,6 @@ void Stream::GetPacket(AVPacket &pkt) {
     std::unique_lock<std::mutex> lock(mtx_);
     packet_empty_.wait(lock, [this] { return !packet_queue_.empty(); });
     av_copy_packet(&pkt, &packet_queue_.front());
-//    pkt = packet_queue_.front();
     packet_queue_.pop();
     packet_full_.notify_one();
 }
@@ -57,12 +57,20 @@ void Stream::decode() {
         }
         ret = avcodec_send_packet(avctx_, &pkt);
         if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-            break;
+        {
+            ELOG("stream %d avcodec_send_packet error %d", stream_index_, ret);
+            continue;
+        }
         AVFrame *frame = av_frame_alloc();
         ret = avcodec_receive_frame(avctx_, frame);
         if (ret < 0 && ret != AVERROR_EOF)
-            break;
+        {
+            ELOG("stream %d avcodec_receive_frame error %d", stream_index_, ret);
+            continue;
+        }
+
         frame->pts = av_frame_get_best_effort_timestamp(frame);
+        DLOG("decode one frame");
         PutFrame(frame);
 
     } while (true);
