@@ -19,8 +19,8 @@ void Player::SetDataSource(JNIEnv *env, const std::string &data_source) {
 Player::Player() : audio_player(this) {
     av_register_all();
     avformat_network_init();
-//    av_log_set_callback(log);
-//    av_log_set_level(AV_LOG_INFO);
+    av_log_set_callback(log);
+    av_log_set_level(AV_LOG_INFO);
 }
 
 Player::~Player() {
@@ -69,6 +69,7 @@ void Player::Prepare() {
             st_index[AVMEDIA_TYPE_VIDEO] = i;
             video_stream = new Stream(i, ic_);
             auto avctx = video_stream->GetAVCtx();
+            ILOG("video context : width %d, height %d", avctx->width, avctx->height);
             video_swr_ctx_ = sws_getContext(avctx->width, avctx->height, avctx->pix_fmt,
                                              avctx->width, avctx->height, AV_PIX_FMT_RGBA, SWS_BICUBIC, NULL, NULL, NULL);
             video_player->Setup(avctx->width, avctx->height);
@@ -86,19 +87,25 @@ void Player::read() {
     AVPacket *pkt = (AVPacket *)av_malloc(sizeof(AVPacket));
     int ret = 0;
     while(true) {
-        DLOG("read one");
         ret = av_read_frame(ic_, pkt);
         if (ret < 0) {
-            DLOG("read one %d", ret);
-            break;
+            if ((ret == AVERROR_EOF || avio_feof(ic_->pb)) && !eof) {
+//                if (video_stream >= 0)
+//                    viddec.pkt_queue.put_nullpacket();
+//                if (audio_stream >= 0)
+//                    auddec.pkt_queue.put_nullpacket();
+                eof = 1;
+            }
+            if (ic_->pb && ic_->pb->error)
+                break;
+        } else {
+            eof = 0;
         }
         /* check if packet is in play range specified by user, then queue, otherwise discard */
 
         if (pkt->stream_index == audio_stream->GetIndex()) {
-            DLOG("read audio");
             audio_stream->PutPacket(*pkt);
         }else if (pkt->stream_index == video_stream->GetIndex()) {
-            DLOG("read video");
             video_stream->PutPacket(*pkt);
         }
     }
@@ -165,7 +172,6 @@ void Player::GetAudioData(int &nextSize, uint8_t *outputBuffer) {
     if (outputBuffer == nullptr) return;
     auto frame = av_frame_alloc();
     audio_stream->GetFrame(frame);
-    av_log(NULL, AV_LOG_INFO, "GetAudioBuffer %d", frame->channels);
     auto ctx = audio_stream->GetAVCtx();
     if (ctx->sample_fmt == AV_SAMPLE_FMT_S16P) {
         nextSize = av_samples_get_buffer_size(frame->linesize, ctx->channels, ctx->frame_size, ctx->sample_fmt, 1);
@@ -187,7 +193,6 @@ void Player::PlayAudio() {
 }
 
 void Player::Start() {
-    DLOG("start play");
     if (audio_stream != nullptr) {
         std::thread audio_thread(&Player::PlayAudio, this);
         audio_thread.detach();
@@ -199,16 +204,19 @@ void Player::Start() {
 }
 
 void Player::PlayVideo() {
-    DLOG("play video");
     AVFrame *frameRGBA = av_frame_alloc();
+    auto frame = av_frame_alloc();
     int bytes_num = av_image_get_buffer_size(AV_PIX_FMT_RGBA, video_stream->GetAVCtx()->width, video_stream->GetAVCtx()->height, 1);
     uint8_t *out_buffer = (uint8_t *)av_malloc(bytes_num*sizeof(uint8_t));
     av_image_fill_arrays(frameRGBA->data, frameRGBA->linesize, out_buffer, AV_PIX_FMT_RGBA, video_stream->GetAVCtx()->width, video_stream->GetAVCtx()->height, 1);
     while (!stop_) {
-        video_stream->GetFrame(frameRGBA);
-        DLOG("play while");
-        sws_scale(video_swr_ctx_, (const uint8_t* const*)frameRGBA->data, frameRGBA->linesize, 0, video_stream->GetAVCtx()->height,
+        video_stream->GetFrame(frame);
+        sws_scale(video_swr_ctx_, (const uint8_t* const*)frame->data, frame->linesize, 0, video_stream->GetAVCtx()->height,
                   frameRGBA->data, frameRGBA->linesize);
+//        double timestamp = av_frame_get_best_effort_timestamp(frame)*av_q2d(video_st->time_base);
+//        if (timestamp > audio_clock) {
+//            usleep((unsigned long)((timestamp - audio_clock)*1000000));
+//        }
         video_player->Show(out_buffer, frameRGBA->linesize[0]);
     }
     av_frame_unref(frameRGBA);

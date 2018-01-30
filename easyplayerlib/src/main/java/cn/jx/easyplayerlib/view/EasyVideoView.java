@@ -235,13 +235,13 @@ public class EasyVideoView extends FrameLayout implements MediaController.MediaP
                     mCurrentState = STATE_PREPARING;
                 }
             }).start();
-            if (mMediaController == null) {
-                mMediaController = new MediaController(getContext());
-                mMediaController.setMediaPlayer(this);
-                mMediaController.setAnchorView(this);
-                mMediaController.setEnabled(true);
-                mMediaController.show();
-            }
+//            if (mMediaController == null) {
+//                mMediaController = new MediaController(getContext());
+//                mMediaController.setMediaPlayer(this);
+//                mMediaController.setAnchorView(this);
+//                mMediaController.setEnabled(true);
+//                mMediaController.show();
+//            }
 
         }catch (Exception e) {
 

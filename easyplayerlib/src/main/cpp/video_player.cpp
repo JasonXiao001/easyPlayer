@@ -21,9 +21,13 @@ VideoPlayer::~VideoPlayer() {
 
 void VideoPlayer::Setup(int32_t width, int32_t height, int32_t format) {
     if (nativeWindow != nullptr) {
-        ANativeWindow_setBuffersGeometry(nativeWindow, width, height, format);
+        auto ret = ANativeWindow_setBuffersGeometry(nativeWindow, width, height, format);
         height_ = height;
         width_ = width;
+        if (ret != 0) {
+            ELOG("set video player error");
+        }
+
     }
 }
 

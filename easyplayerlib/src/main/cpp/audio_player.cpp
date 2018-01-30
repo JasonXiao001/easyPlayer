@@ -136,7 +136,6 @@ void AudioPlayer::bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *conte
     int next_size = 0;
     AudioPlayer *player = (AudioPlayer *)context;
     player->src_->GetAudioData(next_size, player->buffer_);
-    ILOG("player callback %d", next_size);
     if (0 != next_size) {
         // enqueue another buffer
         auto result = (*bq)->Enqueue(bq, player->buffer_, next_size);

@@ -60,7 +60,7 @@ private:
     struct SwrContext *audio_swr_ctx_;
     struct SwsContext *video_swr_ctx_;
     JNIEnv *env_;
-
+    int eof;
     bool stop_ = false;
 
 };
