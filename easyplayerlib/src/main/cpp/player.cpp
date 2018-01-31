@@ -19,7 +19,7 @@ void Player::SetDataSource(JNIEnv *env, const std::string &data_source) {
 Player::Player() : audio_player(this) {
     av_register_all();
     avformat_network_init();
-    av_log_set_callback(log);
+//    av_log_set_callback(log);
     av_log_set_level(AV_LOG_INFO);
 }
 
@@ -90,10 +90,10 @@ void Player::read() {
         ret = av_read_frame(ic_, pkt);
         if (ret < 0) {
             if ((ret == AVERROR_EOF || avio_feof(ic_->pb)) && !eof) {
-//                if (video_stream >= 0)
-//                    viddec.pkt_queue.put_nullpacket();
-//                if (audio_stream >= 0)
-//                    auddec.pkt_queue.put_nullpacket();
+                if (video_stream != nullptr)
+                    video_stream->PutNullPacket();
+                if (audio_stream != nullptr)
+                    audio_stream->PutNullPacket();
                 eof = 1;
             }
             if (ic_->pb && ic_->pb->error)
@@ -103,11 +103,14 @@ void Player::read() {
         }
         /* check if packet is in play range specified by user, then queue, otherwise discard */
 
-        if (pkt->stream_index == audio_stream->GetIndex()) {
-            audio_stream->PutPacket(*pkt);
-        }else if (pkt->stream_index == video_stream->GetIndex()) {
+        if (pkt->stream_index == audio_stream->GetIndex() && audio_stream != nullptr) {
+//            audio_stream->PutPacket(*pkt);
+        }else if (pkt->stream_index == video_stream->GetIndex() && video_stream != nullptr) {
             video_stream->PutPacket(*pkt);
+        }else {
+            av_packet_unref(pkt);
         }
+
     }
 }
 
@@ -119,7 +122,6 @@ bool Player::GetAudioBuffer(int &nextSize, uint8_t *outputBuffer) {
     if (outputBuffer == nullptr) return false;
     auto frame = av_frame_alloc();
     audio_stream->GetFrame(frame);
-    av_log(NULL, AV_LOG_INFO, "GetAudioBuffer %d", frame->channels);
     auto ctx = audio_stream->GetAVCtx();
     if (ctx->sample_fmt == AV_SAMPLE_FMT_S16P) {
         nextSize = av_samples_get_buffer_size(frame->linesize, ctx->channels, ctx->frame_size, ctx->sample_fmt, 1);
@@ -130,6 +132,7 @@ bool Player::GetAudioBuffer(int &nextSize, uint8_t *outputBuffer) {
                           (uint8_t const **) (frame->extended_data),
                           frame->nb_samples);
     av_frame_unref(frame);
+    av_frame_free(&frame);
     return ret >= 0;
 }
 
@@ -193,10 +196,10 @@ void Player::PlayAudio() {
 }
 
 void Player::Start() {
-    if (audio_stream != nullptr) {
-        std::thread audio_thread(&Player::PlayAudio, this);
-        audio_thread.detach();
-    }
+//    if (audio_stream != nullptr) {
+//        std::thread audio_thread(&Player::PlayAudio, this);
+//        audio_thread.detach();
+//    }
     if (video_stream != nullptr && video_player != nullptr) {
         std::thread video_thread(&Player::PlayVideo, this);
         video_thread.detach();

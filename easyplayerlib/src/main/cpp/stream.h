@@ -18,6 +18,7 @@ class Stream {
 public:
     Stream(int index, const AVFormatContext *ctx);
     void PutPacket(AVPacket &pkt);
+    void PutNullPacket();
     void GetFrame(AVFrame *frame);
     AVCodecContext *GetAVCtx() const;
     int GetIndex() const;

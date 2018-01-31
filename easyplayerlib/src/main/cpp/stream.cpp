@@ -17,9 +17,11 @@ void Stream::PutPacket(AVPacket &pkt) {
 void Stream::GetPacket(AVPacket &pkt) {
     std::unique_lock<std::mutex> lock(mtx_);
     packet_empty_.wait(lock, [this] { return !packet_queue_.empty(); });
-//    av_copy_packet(&pkt, &packet_queue_.front());
-    pkt = packet_queue_.front();
+    auto tmp = packet_queue_.front();
+    av_copy_packet(&pkt, &tmp);
+//    pkt = packet_queue_.front();
     packet_queue_.pop();
+    av_packet_unref(&tmp);
     packet_full_.notify_one();
 }
 
@@ -60,7 +62,7 @@ void Stream::decode() {
         if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
         {
             ELOG("stream %d avcodec_send_packet error %d", stream_index_, ret);
-            continue;
+            break;
         }
         AVFrame *frame = av_frame_alloc();
         ret = avcodec_receive_frame(avctx_, frame);
@@ -68,7 +70,7 @@ void Stream::decode() {
         {
             ELOG("stream %d avcodec_receive_frame error %d", stream_index_, ret);
             av_frame_unref(frame);
-            continue;
+            break;
         }
 
         frame->pts = av_frame_get_best_effort_timestamp(frame);
@@ -91,6 +93,7 @@ void Stream::GetFrame(AVFrame *frame) {
     auto tmp_frame = frame_queue_.front();
     av_frame_move_ref(frame, tmp_frame);
     av_frame_unref(tmp_frame);
+    av_frame_free(&tmp_frame);
     frame_queue_.pop();
     frame_full_.notify_one();
 }
@@ -101,6 +104,15 @@ AVCodecContext *Stream::GetAVCtx() const {
 
 int Stream::GetIndex() const {
     return stream_index_;
+}
+
+void Stream::PutNullPacket() {
+    AVPacket *pkt = new AVPacket();
+    av_init_packet(pkt);
+    pkt->data = NULL;
+    pkt->size = 0;
+    PutPacket(*pkt);
+    av_packet_unref(pkt);
 }
 
 
