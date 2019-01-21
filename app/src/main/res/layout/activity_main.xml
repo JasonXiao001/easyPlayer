@@ -10,10 +10,6 @@
         android:id="@+id/video_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
-    <cn.jx.easyplayerlib.view.EasyVideoView
-        android:id="@+id/easy_video_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
     <Button
         android:id="@+id/pause"
         android:layout_alignParentBottom="true"

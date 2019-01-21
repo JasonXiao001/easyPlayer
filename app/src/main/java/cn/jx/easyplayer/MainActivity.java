@@ -19,10 +19,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
-import cn.jx.easyplayerlib.EasyPlayer;
-import cn.jx.easyplayerlib.events.VideoEventListener;
-import cn.jx.easyplayerlib.player.EasyMediaPlayer;
-import cn.jx.easyplayerlib.view.EasyVideoView;
 
 
 public class MainActivity extends AppCompatActivity{
@@ -32,18 +28,24 @@ public class MainActivity extends AppCompatActivity{
     private SurfaceHolder surfaceViewHolder;
     private SurfaceView surfaceView;
     private Handler mainHandler = new Handler();
-//    EasyPlayer easyPlayer = new EasyPlayer();
-
+    static {
+        System.loadLibrary("native-lib");
+    }
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        final EasyVideoView videoView = (EasyVideoView) findViewById(R.id.easy_video_view);
+
+        test();
+
+
+
+//        final EasyVideoView videoView = (EasyVideoView) findViewById(R.id.easy_video_view);
         String folderurl = Environment.getExternalStorageDirectory().getPath();
-        String inputurl = folderurl+"/jack.mp4";
-        videoView.setVideoPath(inputurl);
+        String inputurl = folderurl+"/sintel.mp4";
+//        videoView.setVideoPath(inputurl);
 //        surfaceView = (SurfaceView) findViewById(R.id.video_view);
 //        surfaceViewHolder = surfaceView.getHolder();
 //        surfaceViewHolder.addCallback(new SurfaceHolder.Callback() {
@@ -62,14 +64,14 @@ public class MainActivity extends AppCompatActivity{
 //
 //            }
 //        });
-        Button pause = (Button) findViewById(R.id.pause);
-        pause.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                videoView.start();
-
-            }
-        });
+//        Button pause = (Button) findViewById(R.id.pause);
+//        pause.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                videoView.start();
+//
+//            }
+//        });
 
 
 
@@ -119,6 +121,8 @@ public class MainActivity extends AppCompatActivity{
 
 
     public native void togglePaused();
+
+    public native void test();
 
 
 

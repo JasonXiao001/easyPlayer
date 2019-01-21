@@ -127,9 +127,9 @@ enum class PlayerState {
 };
 
 
-class EasyPlayer {
+class EasyPlayer1 {
 public:
-    EasyPlayer() = default;
+    EasyPlayer1() = default;
     void init(const std::string input_filename);
     bool has_video();
     bool get_img_frame(AVFrame *frame);

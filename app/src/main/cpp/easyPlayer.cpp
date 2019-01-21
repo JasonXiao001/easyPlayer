@@ -253,7 +253,7 @@ void EasyPlayer::init(const std::string input_filename) {
 
 void EasyPlayer::read() {
     int err, i, ret;
-    av_log(NULL, AV_LOG_INFO, "start read thread.\n");
+    av_log(NULL, AV_LOG_INFO, "start read thread 11.\n");
     AVPacket *pkt = (AVPacket *)av_malloc(sizeof(AVPacket));
     if (pkt == NULL) {
         av_log(NULL, AV_LOG_FATAL, "Could not allocate avPacket.\n");

@@ -22,7 +22,7 @@ void createBufferQueueAudioPlayer(int sampleRate, int channel);
 void audioStart();
 void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
 void releaseResampleBuf(void);
-void init(EasyPlayer *player);
+
 
 
 
