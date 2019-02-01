@@ -2,7 +2,6 @@
 
 #include "log_util.h"
 #include "easy_player.h"
-#include <opensles.h>
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
@@ -109,7 +108,7 @@ void
 Java_cn_jx_easyplayer_MainActivity_test
         (JNIEnv *env, jobject obj) {
     EasyPlayer *player = new EasyPlayer();
-    player->SetDataSource("rtmp://live.hkstv.hk.lxdns.com/live/hks1");
+    player->SetDataSource("sdcard/");
 }
 
 

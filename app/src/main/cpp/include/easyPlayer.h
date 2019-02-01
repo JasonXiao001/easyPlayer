@@ -24,28 +24,6 @@ extern "C"{
 #include <memory>
 #include <unistd.h>
 
-class PacketQueue {
-public:
-    int put_packet(AVPacket *pkt);
-    int get_packet(AVPacket *pkt);
-    int put_nullpacket();
-    void set_abort(int abort);
-    int get_abort();
-    int get_serial();
-    void flush();
-    size_t get_queue_size();
-private:
-    std::queue<AVPacket> queue;
-    int64_t duration;
-    int abort_request = 1;
-    int serial;
-    std::mutex mutex;
-    std::condition_variable cond;
-    std::condition_variable full;
-    const size_t MAX_SIZE = 8;
-
-};
-
 
 struct Frame {
     Frame(AVFrame *f) : frame(f){

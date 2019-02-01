@@ -2,10 +2,11 @@
 // Created by Administrator on 2016/10/26.
 //
 
-#include "include/opensles.h"
-#include <android/log.h>
-
-#define LOGD(format, ...)  __android_log_print(ANDROID_LOG_INFO,  "native-lib", format, ##__VA_ARGS__)
+#include "opensles.h"
+#include <SLES/OpenSLES.h>
+#include <jni.h>
+#include <pthread.h>
+#include <assert.h>
 
 
 SLObjectItf engineObject = NULL;
@@ -213,14 +214,3 @@ void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
     }
 }
 
-
-void releaseResampleBuf(void) {
-    if( 0 == bqPlayerSampleRate) {
-        /*
-         * we are not using fast path, so we were not creating buffers, nothing to do
-         */
-        return;
-    }
-    free(resampleBuf);
-    resampleBuf = NULL;
-}

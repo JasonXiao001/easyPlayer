@@ -5,9 +5,59 @@
 #include "easy_player.h"
 #include "log_util.h"
 #include "common.h"
+#include "opensles.h"
 
 
-EasyPlayer::EasyPlayer() : state_(State::Idle), ic_(nullptr) {
+
+
+void PacketQueue::Put(AVPacket *pkt) {
+    std::lock_guard<std::mutex> lck(mutex_);
+    if (queue_.size() >= kMaxSize) {
+        WLOG("packet queue is full");
+        auto dump_pkt = queue_.front();
+        av_packet_unref(&dump_pkt);
+        queue_.pop();
+    }
+    queue_.push(*pkt);
+    ready_.notify_all();
+}
+
+void PacketQueue::Get(AVPacket *pkt) {
+    if (pkt == nullptr) return;
+    std::unique_lock<std::mutex> lck(mutex_);
+    ready_.wait(lck, [this]{
+        return !queue_.empty();
+    });
+    *pkt = queue_.front();
+    queue_.pop();
+}
+
+void PacketQueue::Clear() {
+    std::lock_guard<std::mutex> lck(mutex_);
+
+}
+
+AVFrame *FrameQueue::Get() {
+    std::unique_lock<std::mutex> lck(mutex_);
+    cond_.wait(lck, [this]{
+        return !queue_.empty();
+    });
+    AVFrame *frame = queue_.front();
+    queue_.pop();
+    return frame;
+}
+
+void FrameQueue::Put(AVFrame *frame) {
+    std::lock_guard<std::mutex> lck(mutex_);
+    AVFrame *tmp = av_frame_alloc();
+    av_frame_move_ref(tmp, frame);
+    queue_.push(tmp);
+    cond_.notify_all();
+}
+
+
+EasyPlayer::EasyPlayer() : state_(State::Idle),
+                           ic_(nullptr), eof(0), video_stream_(-1), audio_stream_(-1) {
     av_log_set_callback(ff_log_callback);
     av_log_set_level(AV_LOG_DEBUG);
     av_register_all();
@@ -27,12 +77,7 @@ int EasyPlayer::SetDataSource(const std::string &path) {
         return ERROR_ILLEGAL_STATE;
     }
     ILOG("source path:%s", path.c_str());
-    int err;
-    err = avformat_open_input(&ic_, path.c_str(), NULL, NULL);
-    if (err) {
-        ELOG("avformat_open_input failed|ret:%d", err);
-        return ERROR_IO;
-    }
+    path_ = path;
     state_ = State ::Initialized;
     return SUCCESS;
 }
@@ -42,6 +87,160 @@ int EasyPlayer::PrepareAsync() {
         ELOG("illegal state|current:%d", state_);
         return ERROR_ILLEGAL_STATE;
     }
-
+    read_thread_.reset(new std::thread(&EasyPlayer::read, this));
     return SUCCESS;
+}
+
+void EasyPlayer::read() {
+    int err;
+    err = avformat_open_input(&ic_, path_.c_str(), NULL, NULL);
+    if (err) {
+        ELOG("avformat_open_input failed|ret:%d", err);
+        return;
+    }
+    err = avformat_find_stream_info(ic_, NULL);
+    if (err < 0) {
+        ELOG("could not find codec parameters");
+        return;
+    }
+    for(int i = 0; i < ic_->nb_streams; i++) {
+        if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            audio_stream_ = i;
+            ILOG("find audio stream index %d", i);
+        }
+        if (ic_->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            video_stream_ = i;
+            ILOG("find video stream index %d", i);
+        }
+    }
+    // start audio decode thread
+    if (audio_stream_ > 0) {
+        audio_decode_thread_.reset(new std::thread(&EasyPlayer::decodeAudio, this));
+    }
+    // start video decode thread
+    if (video_stream_ > 0) {
+        video_decode_thread_.reset(new std::thread(&EasyPlayer::decodeVideo, this));
+    }
+
+    AVPacket *pkt = (AVPacket *)av_malloc(sizeof(AVPacket));
+    if (pkt == NULL) {
+        ELOG("Could not allocate avPacket");
+        return;
+    }
+    while (true) {
+        err = av_read_frame(ic_, pkt);
+        if (err < 0) {
+            if ((err == AVERROR_EOF || avio_feof(ic_->pb))) {
+                eof = 1;
+            }
+            if (ic_->pb && ic_->pb->error)
+                break;
+        }
+        if (pkt->stream_index == audio_stream_) {
+            audio_packets_.Put(pkt);
+        } else if (pkt->stream_index == video_stream_) {
+            video_packets_.Put(pkt);
+        } else {
+            av_packet_unref(pkt);
+        }
+    }
+
+
+}
+
+void EasyPlayer::decodeAudio() {
+    AVPacket pkt;
+    AVFrame *frame = av_frame_alloc();
+    while (true) {
+        audio_packets_.Get(&pkt);
+        int ret;
+        ret = avcodec_send_packet(audio_codec_ctx_, &pkt);
+        if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
+            ELOG("avcodec_send_packet error|code:%d", ret);
+            break;
+        }
+        ret = avcodec_receive_frame(audio_codec_ctx_, frame);
+        if (ret < 0 && ret != AVERROR_EOF) {
+            ELOG("avcodec_receive_frame error|code:%d", ret);
+            break;
+        }
+        audio_frames_.Put(frame);
+    }
+}
+
+void EasyPlayer::decodeVideo(){
+    AVPacket pkt;
+    AVFrame *frame = av_frame_alloc();
+    while (true) {
+        video_packets_.Get(&pkt);
+        int ret;
+        ret = avcodec_send_packet(video_codec_ctx_, &pkt);
+        if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
+            ELOG("avcodec_send_packet error|code:%d", ret);
+            break;
+        }
+        ret = avcodec_receive_frame(video_codec_ctx_, frame);
+        if (ret < 0 && ret != AVERROR_EOF) {
+            ELOG("avcodec_receive_frame error|code:%d", ret);
+            break;
+        }
+        video_frames_.Put(frame);
+    }
+}
+
+void EasyPlayer::openStream(int index) {
+    AVCodecContext *avctx;
+    AVCodec *codec;
+    int sample_rate, nb_channels;
+    int64_t channel_layout;
+    int ret = 0;
+    if (index < 0 || index >= ic_->nb_streams)
+        return;
+    avctx = avcodec_alloc_context3(NULL);
+    if (!avctx) {
+        ELOG("can not alloc codec ctx");
+        return;
+    }
+    ret = avcodec_parameters_to_context(avctx, ic_->streams[index]->codecpar);
+    if (ret < 0) {
+        avcodec_free_context(&avctx);
+        ELOG("avcodec_parameters_to_context error %d", ret);
+        return;
+    }
+    av_codec_set_pkt_timebase(avctx, ic_->streams[index]->time_base);
+    codec = avcodec_find_decoder(avctx->codec_id);
+    avctx->codec_id = codec->id;
+    ic_->streams[index]->discard = AVDISCARD_DEFAULT;
+    ret = avcodec_open2(avctx, codec, NULL);
+    if (ret < 0) {
+        ELOG("Fail to open codec on stream:%d|code:%d", index, ret);
+        avcodec_free_context(&avctx);
+        return;
+    }
+    switch (avctx->codec_type) {
+        case AVMEDIA_TYPE_AUDIO:
+            swr_ctx_ = swr_alloc();
+            swr_ctx_ = swr_alloc_set_opts(NULL,
+                                         avctx->channel_layout, AV_SAMPLE_FMT_S16, avctx->sample_rate,
+                                         avctx->channel_layout, avctx->sample_fmt, avctx->sample_rate,
+                                         0, NULL);
+            if (!swr_ctx_ || swr_init(swr_ctx_) < 0) {
+                ELOG("Cannot create sample rate converter for conversion channels!");
+                swr_free(&swr_ctx_);
+                return;
+            }
+            audio_st_ = ic_->streams[index];
+            audio_codec_ctx_ = avctx;
+            audio_decode_thread_.reset(new std::thread(&EasyPlayer::decodeAudio, this));
+            break;
+        case AVMEDIA_TYPE_VIDEO:
+            video_st_ = ic_->streams[index];
+            img_convert_ctx_ = sws_getContext(avctx->width, avctx->height, avctx->pix_fmt,
+                                             avctx->width, avctx->height, AV_PIX_FMT_RGBA, SWS_BICUBIC, NULL, NULL, NULL);
+            video_codec_ctx_ = avctx;
+            video_decode_thread_.reset(new std::thread(&EasyPlayer::decodeVideo, this));
+            break;
+        default:
+            break;
+    }
 }
