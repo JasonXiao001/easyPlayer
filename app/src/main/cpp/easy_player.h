@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include "opensles.h"
 extern "C"{
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
@@ -21,6 +22,8 @@ extern "C"{
 #include "libavutil/time.h"
 #include "libavcodec/avfft.h"
 };
+
+#define AUDIO_BUFFER_SIZE 8196
 
 enum class State {
     Idle,
@@ -70,6 +73,7 @@ public:
     ~EasyPlayer();
     int SetDataSource(const std::string &path);
     int PrepareAsync();
+    void EnqueueAudioBuffer(SLAndroidSimpleBufferQueueItf bq);
 
 private:
     void read();
@@ -81,6 +85,7 @@ private:
     std::unique_ptr<std::thread> read_thread_;
     std::unique_ptr<std::thread> audio_decode_thread_;
     std::unique_ptr<std::thread> video_decode_thread_;
+    std::unique_ptr<std::thread> audio_render_thread_;
     AVFormatContext *ic_;
     std::string path_;
     PacketQueue audio_packets_;
@@ -96,6 +101,7 @@ private:
     AVCodecContext *audio_codec_ctx_;
     AVCodecContext *video_codec_ctx_;
     int eof;
+    uint8_t *audio_buffer_;
 };
 
 

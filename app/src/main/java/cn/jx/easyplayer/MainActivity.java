@@ -37,14 +37,9 @@ public class MainActivity extends AppCompatActivity{
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        test();
-
-
-
-//        final EasyVideoView videoView = (EasyVideoView) findViewById(R.id.easy_video_view);
         String folderurl = Environment.getExternalStorageDirectory().getPath();
-        String inputurl = folderurl+"/sintel.mp4";
+        String inputurl = folderurl+"/sanina.mp3";
+        _setDataSource(inputurl);
 //        videoView.setVideoPath(inputurl);
 //        surfaceView = (SurfaceView) findViewById(R.id.video_view);
 //        surfaceViewHolder = surfaceView.getHolder();
@@ -122,7 +117,7 @@ public class MainActivity extends AppCompatActivity{
 
     public native void togglePaused();
 
-    public native void test();
+    public native void _setDataSource(String url);
 
 
 

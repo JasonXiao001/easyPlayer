@@ -43,6 +43,8 @@ const SLEnvironmentalReverbSettings reverbSettings =
         SL_I3DL2_ENVIRONMENT_PRESET_STONECORRIDOR;
 const int outputBufferSize = 8196;
 
+audioPlayCallback audio_cb;
+
 
 void createAudioEngine() {
     SLresult result;
@@ -151,7 +153,7 @@ void createBufferQueueAudioPlayer(int sampleRate, int channel) {
     (void)result;
 
     // register callback on the buffer queue
-    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, bqPlayerCallback, NULL);
+    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, audio_cb, NULL);
     assert(SL_RESULT_SUCCESS == result);
     (void)result;
 
@@ -183,9 +185,7 @@ void createBufferQueueAudioPlayer(int sampleRate, int channel) {
 }
 
 
-void audioStart() {
-    bqPlayerCallback(bqPlayerBufferQueue, NULL);
-}
+
 
 
 // this callback handler is called every time a buffer finishes playing
@@ -209,8 +209,18 @@ void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
         }
         (void)result;
     } else {
-        releaseResampleBuf();
+//        releaseResampleBuf();
         pthread_mutex_unlock(&audioEngineLock);
     }
+}
+
+void initAudioPlayer(int sampleRate, int channel, audioPlayCallback cb) {
+    audio_cb = cb;
+    createAudioEngine();
+    createBufferQueueAudioPlayer(sampleRate, channel);
+}
+
+void startAudioPlay(void *context) {
+    audio_cb(bqPlayerBufferQueue, context);
 }
 

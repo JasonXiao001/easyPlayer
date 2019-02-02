@@ -7,7 +7,10 @@
 
 #include <SLES/OpenSLES_Android.h>
 
+typedef void (*audioPlayCallback) (SLAndroidSimpleBufferQueueItf bq, void *context);
 
-//void init(int sampleRate, int channel, )
+
+void initAudioPlayer(int sampleRate, int channel, audioPlayCallback cb);
+void startAudioPlay(void *context);
 
 #endif //EASYPLAYER_OPENSLES_H

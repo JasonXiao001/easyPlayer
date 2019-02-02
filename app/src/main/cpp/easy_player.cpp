@@ -8,6 +8,11 @@
 #include "opensles.h"
 
 
+void EasyAudioPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
+    EasyPlayer *easyPlayer = (EasyPlayer *)context;
+    easyPlayer->EnqueueAudioBuffer(bq);
+}
+
 
 
 void PacketQueue::Put(AVPacket *pkt) {
@@ -83,7 +88,7 @@ int EasyPlayer::SetDataSource(const std::string &path) {
 }
 
 int EasyPlayer::PrepareAsync() {
-    if (state_ != State::Initialized || state_ != State::Stoped) {
+    if (state_ != State::Initialized && state_ != State::Stoped) {
         ELOG("illegal state|current:%d", state_);
         return ERROR_ILLEGAL_STATE;
     }
@@ -91,11 +96,40 @@ int EasyPlayer::PrepareAsync() {
     return SUCCESS;
 }
 
+void EasyPlayer::EnqueueAudioBuffer(SLAndroidSimpleBufferQueueItf bq) {
+    if (audio_buffer_ == nullptr) return;
+    auto frame = audio_frames_.Get();
+    int next_size;
+    if (audio_codec_ctx_->sample_fmt == AV_SAMPLE_FMT_S16P) {
+        next_size = av_samples_get_buffer_size(frame->linesize, audio_codec_ctx_->channels, audio_codec_ctx_->frame_size, audio_codec_ctx_->sample_fmt, 1);
+    }else {
+        av_samples_get_buffer_size(&next_size, audio_codec_ctx_->channels, audio_codec_ctx_->frame_size, audio_codec_ctx_->sample_fmt, 1);
+    }
+    int ret = swr_convert(swr_ctx_, &audio_buffer_, frame->nb_samples,
+                          (uint8_t const **) (frame->extended_data),
+                          frame->nb_samples);
+    av_frame_unref(frame);
+    av_frame_free(&frame);
+    if (0 != next_size) {
+        SLresult result;
+        result = (*bq)->Enqueue(bq, audio_buffer_, next_size);
+        // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
+        // which for this code example would indicate a programming error
+        if (SL_RESULT_SUCCESS != result) {
+            ELOG("EnqueueAudioBuffer error");
+//            pthread_mutex_unlock(&audioEngineLock);
+        }
+        (void)result;
+    }
+}
+
 void EasyPlayer::read() {
     int err;
+    char err_buff[1024];
     err = avformat_open_input(&ic_, path_.c_str(), NULL, NULL);
     if (err) {
-        ELOG("avformat_open_input failed|ret:%d", err);
+        av_strerror(err, err_buff, sizeof(err_buff));
+        ELOG("avformat_open_input failed|ret:%d|msg:%s", err, err_buff);
         return;
     }
     err = avformat_find_stream_info(ic_, NULL);
@@ -114,12 +148,12 @@ void EasyPlayer::read() {
         }
     }
     // start audio decode thread
-    if (audio_stream_ > 0) {
-        audio_decode_thread_.reset(new std::thread(&EasyPlayer::decodeAudio, this));
+    if (audio_stream_ >= 0) {
+        openStream(audio_stream_);
     }
     // start video decode thread
     if (video_stream_ > 0) {
-        video_decode_thread_.reset(new std::thread(&EasyPlayer::decodeVideo, this));
+        openStream(video_stream_);
     }
 
     AVPacket *pkt = (AVPacket *)av_malloc(sizeof(AVPacket));
@@ -139,7 +173,7 @@ void EasyPlayer::read() {
         if (pkt->stream_index == audio_stream_) {
             audio_packets_.Put(pkt);
         } else if (pkt->stream_index == video_stream_) {
-            video_packets_.Put(pkt);
+//            video_packets_.Put(pkt);
         } else {
             av_packet_unref(pkt);
         }
@@ -191,8 +225,6 @@ void EasyPlayer::decodeVideo(){
 void EasyPlayer::openStream(int index) {
     AVCodecContext *avctx;
     AVCodec *codec;
-    int sample_rate, nb_channels;
-    int64_t channel_layout;
     int ret = 0;
     if (index < 0 || index >= ic_->nb_streams)
         return;
@@ -231,7 +263,11 @@ void EasyPlayer::openStream(int index) {
             }
             audio_st_ = ic_->streams[index];
             audio_codec_ctx_ = avctx;
+            audio_buffer_ = (uint8_t *) malloc(sizeof(uint8_t)*AUDIO_BUFFER_SIZE);
+            initAudioPlayer(audio_codec_ctx_->sample_rate, audio_codec_ctx_->channels, EasyAudioPlayerCallback);
             audio_decode_thread_.reset(new std::thread(&EasyPlayer::decodeAudio, this));
+            audio_render_thread_.reset(new std::thread(startAudioPlay, this));
+            ILOG("start play audio");
             break;
         case AVMEDIA_TYPE_VIDEO:
             video_st_ = ic_->streams[index];
