@@ -5,12 +5,17 @@
 #ifndef EASYPLAYER_OPENSLES_H
 #define EASYPLAYER_OPENSLES_H
 
-#include <SLES/OpenSLES_Android.h>
+#include <stdint.h>
 
-typedef void (*audioPlayCallback) (SLAndroidSimpleBufferQueueItf bq, void *context);
+class AudioDataProvider {
+public:
+    virtual void GetData(uint8_t **buffer, int &buffer_size) = 0;
+    virtual ~AudioDataProvider() = default;
+};
 
 
-void initAudioPlayer(int sampleRate, int channel, audioPlayCallback cb);
-void startAudioPlay(void *context);
+void initAudioPlayer(int sampleRate, int channel, AudioDataProvider *p);
+void startAudioPlay();
+void stopAudioPlay();
 
 #endif //EASYPLAYER_OPENSLES_H

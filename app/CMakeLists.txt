@@ -31,7 +31,9 @@ add_library(native-lib SHARED
             ${CMAKE_SOURCE_DIR}/src/main/cpp/native-lib.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/log_util.cpp
             ${CMAKE_SOURCE_DIR}/src/main/cpp/opensles.cpp
-            ${CMAKE_SOURCE_DIR}/src/main/cpp/easy_player.cpp)
+            ${CMAKE_SOURCE_DIR}/src/main/cpp/easy_player.cpp
+            ${CMAKE_SOURCE_DIR}/src/main/cpp/event_callback.cpp
+            ${CMAKE_SOURCE_DIR}/src/main/cpp/native_window_renderer.cpp)
 
 # Include libraries needed for VideoPlayer lib
 target_link_libraries(native-lib

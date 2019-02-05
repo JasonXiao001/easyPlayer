@@ -12,6 +12,8 @@
 #include <mutex>
 #include <queue>
 #include "opensles.h"
+#include "event_callback.h"
+#include "native_window_renderer.h"
 extern "C"{
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
@@ -24,6 +26,7 @@ extern "C"{
 };
 
 #define AUDIO_BUFFER_SIZE 8196
+#define AUDIO_READY_SIZE 8
 
 enum class State {
     Idle,
@@ -49,6 +52,7 @@ private:
     int64_t duration_;
     std::mutex mutex_;
     std::condition_variable ready_;
+    std::condition_variable full_;
     const size_t kMaxSize = 16;
 };
 
@@ -56,24 +60,33 @@ class FrameQueue {
 public:
     void Put(AVFrame *frame);
     AVFrame *Get();
-
+    size_t Size() const {
+        return queue_.size();
+    };
 private:
     std::queue<AVFrame*> queue_;
     std::mutex mutex_;
     std::condition_variable cond_;
     const size_t kMaxSize = 16;
-    const size_t kReadySize = 1;
+    const size_t kReadySize = 8;
 };
 
 
-class EasyPlayer {
+
+class EasyPlayer : public AudioDataProvider, public VideoDataProvider {
 public:
     EasyPlayer();
     EasyPlayer(const EasyPlayer&) = delete;
     ~EasyPlayer();
     int SetDataSource(const std::string &path);
     int PrepareAsync();
-    void EnqueueAudioBuffer(SLAndroidSimpleBufferQueueItf bq);
+    void SetEventCallback(EventCallback *cb);
+    int Start();
+    int Pause();
+    virtual void GetData(uint8_t **buffer, int &buffer_size) override;
+    virtual void GetData(uint8_t **buffer, AVFrame **frame, int &width, int &height) override;
+    virtual int GetVideoWidth() override;
+    virtual int GetVideoHeight() override;
 
 private:
     void read();
@@ -81,11 +94,13 @@ private:
     void decodeVideo();
     void openStream(int index);
 private:
+    EventCallback *event_cb_;
     State state_;
     std::unique_ptr<std::thread> read_thread_;
     std::unique_ptr<std::thread> audio_decode_thread_;
     std::unique_ptr<std::thread> video_decode_thread_;
     std::unique_ptr<std::thread> audio_render_thread_;
+    std::unique_ptr<std::thread> video_render_thread_;
     AVFormatContext *ic_;
     std::string path_;
     PacketQueue audio_packets_;
@@ -102,6 +117,9 @@ private:
     AVCodecContext *video_codec_ctx_;
     int eof;
     uint8_t *audio_buffer_;
+    AVFrame *frame_rgba_;
+    uint8_t *rgba_buffer_;
+    double audio_clock;
 };
 
 

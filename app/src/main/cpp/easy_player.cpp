@@ -6,23 +6,20 @@
 #include "log_util.h"
 #include "common.h"
 #include "opensles.h"
+#include <unistd.h>
 
-
-void EasyAudioPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
-    EasyPlayer *easyPlayer = (EasyPlayer *)context;
-    easyPlayer->EnqueueAudioBuffer(bq);
+inline
+char *GetAVErrorMsg(int code) {
+    static char err_msg[1024];
+    av_strerror(code, err_msg, sizeof(err_msg));
+    return err_msg;
 }
 
-
-
 void PacketQueue::Put(AVPacket *pkt) {
-    std::lock_guard<std::mutex> lck(mutex_);
-    if (queue_.size() >= kMaxSize) {
-        WLOG("packet queue is full");
-        auto dump_pkt = queue_.front();
-        av_packet_unref(&dump_pkt);
-        queue_.pop();
-    }
+    std::unique_lock<std::mutex> lck(mutex_);
+    full_.wait(lck, [this] {
+        return queue_.size() <= kMaxSize;
+    });
     queue_.push(*pkt);
     ready_.notify_all();
 }
@@ -35,6 +32,7 @@ void PacketQueue::Get(AVPacket *pkt) {
     });
     *pkt = queue_.front();
     queue_.pop();
+    full_.notify_all();
 }
 
 void PacketQueue::Clear() {
@@ -62,7 +60,8 @@ void FrameQueue::Put(AVFrame *frame) {
 
 
 EasyPlayer::EasyPlayer() : state_(State::Idle),
-                           ic_(nullptr), eof(0), video_stream_(-1), audio_stream_(-1) {
+                           ic_(nullptr), eof(0), video_stream_(-1), audio_stream_(-1),
+                           event_cb_(nullptr), audio_clock(0) {
     av_log_set_callback(ff_log_callback);
     av_log_set_level(AV_LOG_DEBUG);
     av_register_all();
@@ -92,11 +91,16 @@ int EasyPlayer::PrepareAsync() {
         ELOG("illegal state|current:%d", state_);
         return ERROR_ILLEGAL_STATE;
     }
+    state_ = State ::Preparing;
     read_thread_.reset(new std::thread(&EasyPlayer::read, this));
     return SUCCESS;
 }
 
-void EasyPlayer::EnqueueAudioBuffer(SLAndroidSimpleBufferQueueItf bq) {
+void EasyPlayer::SetEventCallback(EventCallback *cb) {
+    event_cb_ = cb;
+}
+
+void EasyPlayer::GetData(uint8_t **buffer, int &buffer_size) {
     if (audio_buffer_ == nullptr) return;
     auto frame = audio_frames_.Get();
     int next_size;
@@ -108,20 +112,13 @@ void EasyPlayer::EnqueueAudioBuffer(SLAndroidSimpleBufferQueueItf bq) {
     int ret = swr_convert(swr_ctx_, &audio_buffer_, frame->nb_samples,
                           (uint8_t const **) (frame->extended_data),
                           frame->nb_samples);
+    audio_clock = frame->pkt_pts * av_q2d(audio_st_->time_base);
     av_frame_unref(frame);
     av_frame_free(&frame);
-    if (0 != next_size) {
-        SLresult result;
-        result = (*bq)->Enqueue(bq, audio_buffer_, next_size);
-        // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
-        // which for this code example would indicate a programming error
-        if (SL_RESULT_SUCCESS != result) {
-            ELOG("EnqueueAudioBuffer error");
-//            pthread_mutex_unlock(&audioEngineLock);
-        }
-        (void)result;
-    }
+    *buffer = audio_buffer_;
+    buffer_size = next_size;
 }
+
 
 void EasyPlayer::read() {
     int err;
@@ -152,7 +149,7 @@ void EasyPlayer::read() {
         openStream(audio_stream_);
     }
     // start video decode thread
-    if (video_stream_ > 0) {
+    if (video_stream_ >= 0) {
         openStream(video_stream_);
     }
 
@@ -173,7 +170,7 @@ void EasyPlayer::read() {
         if (pkt->stream_index == audio_stream_) {
             audio_packets_.Put(pkt);
         } else if (pkt->stream_index == video_stream_) {
-//            video_packets_.Put(pkt);
+            video_packets_.Put(pkt);
         } else {
             av_packet_unref(pkt);
         }
@@ -190,19 +187,30 @@ void EasyPlayer::decodeAudio() {
         int ret;
         ret = avcodec_send_packet(audio_codec_ctx_, &pkt);
         if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
-            ELOG("avcodec_send_packet error|code:%d", ret);
+            ELOG("avcodec_send_packet error|code:%d|msg:%s", ret, GetAVErrorMsg(ret));
             break;
         }
         ret = avcodec_receive_frame(audio_codec_ctx_, frame);
         if (ret < 0 && ret != AVERROR_EOF) {
-            ELOG("avcodec_receive_frame error|code:%d", ret);
+            ELOG("avcodec_receive_frame error|code:%d|msg:%s", ret, GetAVErrorMsg(ret));
+            if (ret == -11) {
+                continue;
+            }
             break;
         }
         audio_frames_.Put(frame);
+        if (audio_frames_.Size() >= AUDIO_READY_SIZE && state_ == State::Preparing) {
+            // TODO illegal state check
+            state_ = State ::Prepared;
+            if (event_cb_) {
+                event_cb_->OnPrepared();
+            }
+        }
     }
 }
 
 void EasyPlayer::decodeVideo(){
+    ILOG("start decode video");
     AVPacket pkt;
     AVFrame *frame = av_frame_alloc();
     while (true) {
@@ -210,12 +218,15 @@ void EasyPlayer::decodeVideo(){
         int ret;
         ret = avcodec_send_packet(video_codec_ctx_, &pkt);
         if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
-            ELOG("avcodec_send_packet error|code:%d", ret);
+            ELOG("avcodec_send_packet error|code:%d|msg:%s", ret, GetAVErrorMsg(ret));
             break;
         }
         ret = avcodec_receive_frame(video_codec_ctx_, frame);
         if (ret < 0 && ret != AVERROR_EOF) {
-            ELOG("avcodec_receive_frame error|code:%d", ret);
+            ELOG("avcodec_receive_frame error|code:%d|msg:%s", ret, GetAVErrorMsg(ret));
+            if (ret == -11) {
+                continue;
+            }
             break;
         }
         video_frames_.Put(frame);
@@ -223,6 +234,7 @@ void EasyPlayer::decodeVideo(){
 }
 
 void EasyPlayer::openStream(int index) {
+    ILOG("open stream|index:%d", index);
     AVCodecContext *avctx;
     AVCodec *codec;
     int ret = 0;
@@ -264,19 +276,68 @@ void EasyPlayer::openStream(int index) {
             audio_st_ = ic_->streams[index];
             audio_codec_ctx_ = avctx;
             audio_buffer_ = (uint8_t *) malloc(sizeof(uint8_t)*AUDIO_BUFFER_SIZE);
-            initAudioPlayer(audio_codec_ctx_->sample_rate, audio_codec_ctx_->channels, EasyAudioPlayerCallback);
+            initAudioPlayer(audio_codec_ctx_->sample_rate, audio_codec_ctx_->channels, this);
             audio_decode_thread_.reset(new std::thread(&EasyPlayer::decodeAudio, this));
-            audio_render_thread_.reset(new std::thread(startAudioPlay, this));
-            ILOG("start play audio");
             break;
         case AVMEDIA_TYPE_VIDEO:
             video_st_ = ic_->streams[index];
             img_convert_ctx_ = sws_getContext(avctx->width, avctx->height, avctx->pix_fmt,
                                              avctx->width, avctx->height, AV_PIX_FMT_RGBA, SWS_BICUBIC, NULL, NULL, NULL);
             video_codec_ctx_ = avctx;
+            frame_rgba_ = av_frame_alloc();
+            int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, avctx->width, avctx->height, 1);
+            rgba_buffer_ = (uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
+            av_image_fill_arrays(frame_rgba_->data, frame_rgba_->linesize, rgba_buffer_, AV_PIX_FMT_RGBA, avctx->width, avctx->height, 1);
             video_decode_thread_.reset(new std::thread(&EasyPlayer::decodeVideo, this));
             break;
-        default:
-            break;
     }
+}
+
+int EasyPlayer::Start() {
+    if (state_ != State::Prepared) {
+        ELOG("illegal state|current:%d", state_);
+        return ERROR_ILLEGAL_STATE;
+    }
+    audio_render_thread_.reset(new std::thread(startAudioPlay));
+    video_render_thread_.reset(new std::thread(videoRender));
+    state_ = State ::Started;
+    return SUCCESS;
+}
+
+int EasyPlayer::Pause() {
+    if (state_ != State::Started) {
+        ELOG("illegal state|current:%d", state_);
+        return ERROR_ILLEGAL_STATE;
+    }
+    stopAudioPlay();
+    state_ = State ::Paused;
+    return SUCCESS;
+}
+
+void EasyPlayer::GetData(uint8_t **buffer, AVFrame **frame, int &width, int &height) {
+    auto m_frame = video_frames_.Get();
+    sws_scale(img_convert_ctx_, (const uint8_t* const*)m_frame->data, m_frame->linesize, 0, video_codec_ctx_->height,
+              frame_rgba_->data, frame_rgba_->linesize);
+    double timestamp = av_frame_get_best_effort_timestamp(m_frame)*av_q2d(video_st_->time_base);
+    if (timestamp > audio_clock) {
+        usleep((unsigned long)((timestamp - audio_clock)*1000000));
+    }
+    *frame = frame_rgba_;
+    *buffer = rgba_buffer_;
+    width = video_codec_ctx_->width;
+    height = video_codec_ctx_->height;
+    av_frame_unref(m_frame);
+    av_frame_free(&m_frame);
+}
+
+int EasyPlayer::GetVideoWidth() {
+    if (video_codec_ctx_)
+        return video_codec_ctx_->width;
+    return 0;
+}
+
+int EasyPlayer::GetVideoHeight() {
+    if (video_codec_ctx_)
+        return video_codec_ctx_->height;
+    return 0;
 }

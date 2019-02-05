@@ -7,7 +7,7 @@
 #include <jni.h>
 #include <pthread.h>
 #include <assert.h>
-
+#include <SLES/OpenSLES_Android.h>
 
 SLObjectItf engineObject = NULL;
 SLEngineItf engineEngine;
@@ -25,11 +25,7 @@ SLEffectSendItf bqPlayerEffectSend;
 SLMuteSoloItf bqPlayerMuteSolo;
 SLVolumeItf bqPlayerVolume;
 SLmilliHertz bqPlayerSampleRate = 0;
-jint bqPlayerBufSize = 0;
 short *resampleBuf = NULL;
-// pointer and size of the next player buffer to enqueue, and number of remaining buffers
-uint8_t *outputBuffer;
-int nextSize;
 // a mutext to guard against re-entrance to record & playback
 // as well as make recording and playing back to be mutually exclusive
 // this is to avoid crash at situations like:
@@ -43,8 +39,33 @@ const SLEnvironmentalReverbSettings reverbSettings =
         SL_I3DL2_ENVIRONMENT_PRESET_STONECORRIDOR;
 const int outputBufferSize = 8196;
 
-audioPlayCallback audio_cb;
+AudioDataProvider *data_provider;
+bool stop = false;
 
+
+// this callback handler is called every time a buffer finishes playing
+void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
+{
+    assert(bq == bqPlayerBufferQueue);
+    if (data_provider != NULL) {
+        uint8_t *buffer;
+        int size;
+        data_provider->GetData(&buffer, size);
+        if ( NULL != buffer && 0 != size) {
+            SLresult result;
+            // enqueue another buffer
+            result = (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, buffer, size);
+            // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
+            // which for this code example would indicate a programming error
+            if (SL_RESULT_SUCCESS != result) {
+                pthread_mutex_unlock(&audioEngineLock);
+            }
+            (void)result;
+        } else {
+            pthread_mutex_unlock(&audioEngineLock);
+        }
+    }
+}
 
 void createAudioEngine() {
     SLresult result;
@@ -153,7 +174,7 @@ void createBufferQueueAudioPlayer(int sampleRate, int channel) {
     (void)result;
 
     // register callback on the buffer queue
-    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, audio_cb, NULL);
+    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, bqPlayerCallback, NULL);
     assert(SL_RESULT_SUCCESS == result);
     (void)result;
 
@@ -178,49 +199,25 @@ void createBufferQueueAudioPlayer(int sampleRate, int channel) {
     assert(SL_RESULT_SUCCESS == result);
     (void)result;
 
-    // set the player's state to playing
-    result = (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_PLAYING);
-    assert(SL_RESULT_SUCCESS == result);
-    (void)result;
+
 }
 
 
-
-
-
-// this callback handler is called every time a buffer finishes playing
-void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
-{
-    assert(bq == bqPlayerBufferQueue);
-    assert(NULL == context);
-//    if (mPlayer->get_paused()) {
-//        mPlayer->wait_paused();
-//    }
-//    // for streaming playback, replace this test by logic to find and fill the next buffer
-//    mPlayer->get_aud_buffer(nextSize, outputBuffer);
-    if ( NULL != outputBuffer && 0 != nextSize) {
-        SLresult result;
-        // enqueue another buffer
-        result = (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, outputBuffer, nextSize);
-        // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
-        // which for this code example would indicate a programming error
-        if (SL_RESULT_SUCCESS != result) {
-            pthread_mutex_unlock(&audioEngineLock);
-        }
-        (void)result;
-    } else {
-//        releaseResampleBuf();
-        pthread_mutex_unlock(&audioEngineLock);
-    }
-}
-
-void initAudioPlayer(int sampleRate, int channel, audioPlayCallback cb) {
-    audio_cb = cb;
+void initAudioPlayer(int sampleRate, int channel, AudioDataProvider *p) {
+    data_provider = p;
     createAudioEngine();
     createBufferQueueAudioPlayer(sampleRate, channel);
 }
 
-void startAudioPlay(void *context) {
-    audio_cb(bqPlayerBufferQueue, context);
+void startAudioPlay() {
+    // set the player's state to playing
+    SLresult result = (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_PLAYING);
+    assert(SL_RESULT_SUCCESS == result);
+    (void)result;
+    bqPlayerCallback(bqPlayerBufferQueue, NULL);
+}
+
+void stopAudioPlay() {
+    assert((*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_PAUSED) == SL_RESULT_SUCCESS);
 }
 

@@ -16,30 +16,49 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 
 
 
-public class MainActivity extends AppCompatActivity{
+public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback{
 
     private static final String TAG = MainActivity.class.getSimpleName();
 
-    private SurfaceHolder surfaceViewHolder;
     private SurfaceView surfaceView;
-    private Handler mainHandler = new Handler();
-    static {
-        System.loadLibrary("native-lib");
-    }
-
+    private EasyPlayer easyPlayer = new EasyPlayer();
+    private Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         String folderurl = Environment.getExternalStorageDirectory().getPath();
-        String inputurl = folderurl+"/sanina.mp3";
-        _setDataSource(inputurl);
+        String inputurl = folderurl+"/sintel.mp4";
+        easyPlayer.setDataSource("rtmp://live.hkstv.hk.lxdns.com/live/hks1");
+        surfaceView = (SurfaceView) findViewById(R.id.video_view);
+        surfaceView.getHolder().addCallback(this);
+        easyPlayer.setEventCallback(new EasyPlayerEventCallback() {
+            @Override
+            public void onPrepared() {
+                Log.d(TAG, "onPrepared");
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        int viewWidth = surfaceView.getWidth();
+                        int videoWidth = easyPlayer.getVideoWidth();
+                        int videoHeight = easyPlayer.getVideoHeight();
+                        ViewGroup.LayoutParams lp = surfaceView.getLayoutParams();
+                        lp.width = viewWidth;
+                        lp.height = (int) (((float)videoHeight / (float)videoWidth) * (float)viewWidth);
+                        surfaceView.setLayoutParams(lp);
+                    }
+                });
+                easyPlayer.start();
+            }
+        });
+
 //        videoView.setVideoPath(inputurl);
 //        surfaceView = (SurfaceView) findViewById(R.id.video_view);
 //        surfaceViewHolder = surfaceView.getHolder();
@@ -59,14 +78,14 @@ public class MainActivity extends AppCompatActivity{
 //
 //            }
 //        });
-//        Button pause = (Button) findViewById(R.id.pause);
-//        pause.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                videoView.start();
-//
-//            }
-//        });
+        Button pause = (Button) findViewById(R.id.pause);
+        pause.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                easyPlayer.pause();
+
+            }
+        });
 
 
 
@@ -75,9 +94,25 @@ public class MainActivity extends AppCompatActivity{
     @Override
     protected void onPause() {
         super.onPause();
-        togglePaused();
+//        togglePaused();
     }
 
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+        Log.d(TAG, "surfaceCreated");
+        easyPlayer.setSurface(holder.getSurface());
+        easyPlayer.prepareAsync();
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+
+    }
 
 
     class Play implements Runnable {
@@ -117,7 +152,7 @@ public class MainActivity extends AppCompatActivity{
 
     public native void togglePaused();
 
-    public native void _setDataSource(String url);
+
 
 
 
