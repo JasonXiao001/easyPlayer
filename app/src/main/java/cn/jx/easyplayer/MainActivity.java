@@ -58,26 +58,6 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
                 easyPlayer.start();
             }
         });
-
-//        videoView.setVideoPath(inputurl);
-//        surfaceView = (SurfaceView) findViewById(R.id.video_view);
-//        surfaceViewHolder = surfaceView.getHolder();
-//        surfaceViewHolder.addCallback(new SurfaceHolder.Callback() {
-//            @Override
-//            public void surfaceCreated(SurfaceHolder holder) {
-//                new Thread(new Play()).start();
-//            }
-//
-//            @Override
-//            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-//
-//            }
-//
-//            @Override
-//            public void surfaceDestroyed(SurfaceHolder holder) {
-//
-//            }
-//        });
         Button pause = (Button) findViewById(R.id.pause);
         pause.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -148,11 +128,6 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
 
     }
-
-
-    public native void togglePaused();
-
-
 
 
 
